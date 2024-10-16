@@ -172,3 +172,48 @@ def runStorageDispatchSensitivityShare(params, scenario_cases, SHADOW_PRICE, bas
 
 
 
+def runStorageConfiguration(params, scenario_cases, SHADOW_PRICE, base_tariff, DF_LOAD):
+    
+    start = int(params[scenario_cases[0]]['global']['config']['start']) 
+    end = int(params[scenario_cases[0]]['global']['config']['end']) 
+    VOLL = float(params[scenario_cases[0]]['global']['network']['VOLL'])
+    size = int(params[scenario_cases[0]]['global']['parameter']['size'])
+    delta = float(params[scenario_cases[0]]['global']['tariff']['delta'])
+    
+    STORAGE_RESULT={}
+    output_dir_csv = 'results/CSV'
+    os.makedirs(output_dir_csv, exist_ok=True)
+    
+    
+    for scenario in scenario_cases:
+        print(scenario)
+        df_combined = pd.DataFrame()
+        for year in range(start, end + 1):
+            print(year)
+            shadow_price = SHADOW_PRICE[SHADOW_PRICE['year'] == year]
+            shadow_price = shadow_price.reset_index(drop=True)
+            df_load = DF_LOAD[DF_LOAD['year'] == year]
+            df_load = df_load.reset_index(drop=True)
+            storage_dispatch = bat_optimize_(params, shadow_price, df_load, scenario, size, base_tariff, VOLL, delta)
+            current_data = storage_dispatch.info["data"]
+            current_data["total_demand"]=current_data["gridload"]+current_data["Pc"]
+            current_data["dispatch_load"]=current_data["gridload"]+current_data["Pc"]-current_data["Pd"]
+            current_data["injection_load"]=current_data["gridload"] - current_data["Pd"]
+            current_data['Pc'] = current_data['Pc'] * (-1)
+            current_data['year'] = year
+            current_data['capacity limit'] = storage_dispatch.info["capacity limit"]
+            current_data['capacity threshold'] = storage_dispatch.info["capacity threshold"]
+            df_combined = pd.concat([df_combined, current_data], ignore_index=True)
+        
+        
+        df_combined['price'] = df_combined["base_price"] + df_combined["tariff"]
+        df_combined['dispatch'] = df_combined["Pd"] + df_combined["Pc"]
+        
+        STORAGE_RESULT[scenario] = df_combined
+        df_combined.to_csv(os.path.join(output_dir_csv, f"storage_result_CONFIGURATION_{scenario}.csv"), index=False)
+    
+    return STORAGE_RESULT
+
+
+
+

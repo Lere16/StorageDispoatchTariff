@@ -4,10 +4,12 @@ from core import(readStorageDispatchScenario,
                  runStorageDispatchCases, 
                  runStorageDispatchSensitivitydelta,
                  runStorageDispatchSensitivityShare,
+                 runStorageConfiguration,
                  )
 from results_analysis import (plotStorageDispatchCases,
                               plotStorageDispatchSensitivitydelta,
                               plotStorageDispatchSensitivityShare,
+                              plotStorageConfiguration
                               )
 
 import matplotlib.pyplot as plt
@@ -44,11 +46,20 @@ plotStorageDispatchSensitivitydelta(params, STORAGE_RESULT,categories)
 
 '''
 
+''' 
 # sensitivity analysis for share 
 print("-*- Sensitivity analysis on share")
 scenario_cases = SCENARIOS[13:25]
 STORAGE_RESULT = runStorageDispatchSensitivityShare(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD)
 plotStorageDispatchSensitivityShare(params, STORAGE_RESULT)
+'''
+
+
+print("STEP 4: EX-ANTE TARIFF VS EX-POST TARIFF")
+scenario_cases = SCENARIOS[25:29]
+STORAGE_RESULT = runStorageConfiguration(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD)
+
+plotStorageConfiguration(scenario_cases, STORAGE_RESULT, params)
 
 pass 
 

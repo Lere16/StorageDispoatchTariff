@@ -244,6 +244,74 @@ def plotStorageDispatchSensitivityShare(params, STORAGE_RESULT):
     return None 
 
     
+def plotStorageConfiguration(scenario_cases, STORAGE_RESULT, params):
+    
+    # Compare Storage dispatch from ex-ante and ex-post tariff 
+    output_dir = 'results/plots/storage_dispatch'
+    plotStorageDispatchConfiguration(scenario_cases, STORAGE_RESULT, params, output_dir)
+    plotStorageDispatchConfiguration_2(scenario_cases, STORAGE_RESULT, params, output_dir)
+    
+    
+    # Create a dictionary to map shapes to subplot indices
+    shape_to_idx = {}
+    shape_counter = 0
+    
+    # Initialize the figure and axes
+    fig, axs = plt.subplots(2, 1, figsize=(8, 7))
+    
+    colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k']  # List of colors for different configurations
+    config_color_map = {}  # Map to track the colors used for each config in each shape
+    
+    for ((node, scenario), df) in STORAGE_RESULT.items():
+        # Extracting the data
+        df['revenue_net'] = df['dispatch'] * df['price']
+        annual_revenue = df.groupby('year')['revenue_net'].sum().tolist()
+        
+        # Calculate mean revenue
+        mean_revenue = np.mean(annual_revenue)
+        
+        config = params[scenario]['global']['tariff']['configuration']
+        shape = params[scenario]['global']['tariff']['shape']
+        
+        # Map the shape to an index if it's not already mapped
+        if shape not in shape_to_idx:
+            shape_to_idx[shape] = shape_counter
+            shape_counter += 1
+        
+        # Ensure unique colors for each configuration within the same shape
+        if shape not in config_color_map:
+            config_color_map[shape] = {}
+        
+        if config not in config_color_map[shape]:
+            color_index = len(config_color_map[shape]) % len(colors)
+            config_color_map[shape][config] = colors[color_index]
+        
+        # Select the correct axis for the current shape
+        ax = axs[shape_to_idx[shape]]
+        years = df['year'].unique()
+        color = config_color_map[shape][config]  # Use the assigned color for this config
+        
+        ax.plot(years, annual_revenue, marker='o', color=color, label=f'Annual Revenues ({config})')
+        ax.axhline(mean_revenue, color=color, linestyle='--', label=f'Mean Revenue ({config})')
+        
+        # Add titles and labels
+        ax.set_title(f'{shape}')
+        
+        # Display x-axis label only on the bottom subplot
+        if shape_to_idx[shape] == 1:
+            ax.set_xlabel('Year')
+        
+        # Display y-axis label only on the left subplot
+        if shape_to_idx[shape] == 0:
+            ax.set_ylabel('Revenue (EUR)')
+        
+        ax.legend()
+        ax.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join('results/plots/storage_dispatch', "ex-ante_ex-post_revenue_comparison.png"), dpi=350)
+    
+    return None
 
 
 
@@ -1183,6 +1251,133 @@ def plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir):
     plt.savefig(os.path.join(output_dir, "Sensitivity_on_share_and_shape_stacked_vertical.png"), dpi=350)
     return None
 
+
+def plotStorageDispatchConfiguration(scenario_cases, STORAGE_RESULT, params, output_dir):
+    # Obtenir toutes les formes et configurations uniques
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in scenario_cases))
+    configs = sorted(set(params[scenario]['global']['tariff']['configuration'] for scenario in scenario_cases))
+    
+    # Déterminer la disposition des subplots
+    n = len(shapes)
+    m = len(configs)
+
+    # Lire les paramètres globaux une seule fois
+    year_plot = int(params[scenario_cases[0]]['global']['plot']['year_plot'])
+    start_hour = int(params[scenario_cases[0]]['global']['plot']['start_hour'])
+    end_hour = int(params[scenario_cases[0]]['global']['plot']['end_hour'])
+    
+    # Créer les subplots
+    fig, axes = plt.subplots(n, m, figsize=(5 * m, 5 * n), sharey=True, sharex=True)
+
+    if n == 1 and m == 1:
+        axes = np.array([[axes]])  # S'assurer que axes soit toujours une matrice 2D
+    elif n == 1:
+        axes = np.array([axes])  # S'assurer que axes soit toujours une matrice 2D
+    elif m == 1:
+        axes = np.array([[ax] for ax in axes])  # S'assurer que axes soit toujours une matrice 2D
+
+    for shape_idx, shape in enumerate(shapes):
+        for config_idx, config in enumerate(configs):
+            ax = axes[shape_idx, config_idx]
+
+            
+            for scenario in scenario_cases:
+                if params[scenario]['global']['tariff']['shape'] == shape and params[scenario]['global']['tariff']['configuration'] == config:
+                    # Sélectionner le dataframe correspondant
+                    df = STORAGE_RESULT.get(scenario)
+
+                    # Filtrer les données en fonction de year_plot, start_hour et end_hour
+                    df_filtered = df[(df['year'] == year_plot) & 
+                                        (df['hour'] >= start_hour) & 
+                                        (df['hour'] <= end_hour)]
+
+                    # Tracer les données
+                    #df_filtered['dispatch']*= 10e3
+                    ax.plot(df_filtered['hour'], df_filtered['dispatch_load'], label=f'Total demand', color='b')
+                    ax.plot(df_filtered['hour'], df_filtered['gridload'], label=f'Grid load ', color='g')
+                    
+                    if shape == "piecewise":
+                        ax.plot(df_filtered['hour'], df_filtered['capacity limit'], label=f'Capacity Limit', color='r', linestyle='--')
+                        ax.plot(df_filtered['hour'], df_filtered['capacity threshold'], label=f'Capacity Threshold ', color='m', linestyle='--')
+
+            # Ajouter les titres et légendes
+            ax.set_title(f'{shape} - {config}')
+            if shape_idx == n - 1:  # Ajouter l'étiquette de l'axe des abscisses uniquement pour la dernière rangée
+                ax.set_xlabel('Hour')
+            if config_idx == 0:  # Ajouter l'étiquette de l'axe des ordonnées uniquement pour la première colonne
+                ax.set_ylabel('Power(MW)')
+            ax.legend()
+            ax.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "ex-ante_ex-post_dispatch_comparison.jpg"), dpi=600)
+
+    return None
+
+
+def plotStorageDispatchConfiguration_2(scenario_cases, STORAGE_RESULT, params, output_dir):
+    # Obtenir toutes les formes et configurations uniques
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in scenario_cases))
+    configs = sorted(set(params[scenario]['global']['tariff']['configuration'] for scenario in scenario_cases))
+    
+    # Déterminer la disposition des subplots
+    n = len(shapes)
+    m = len(configs)
+
+    # Lire les paramètres globaux une seule fois
+    year_plot = int(params[scenario_cases[0]]['global']['plot']['year_plot'])
+    start_hour = int(params[scenario_cases[0]]['global']['plot']['start_hour'])
+    end_hour = int(params[scenario_cases[0]]['global']['plot']['end_hour'])
+    
+    # Créer les subplots
+    fig, axes = plt.subplots(n, m, figsize=(5 * m, 5 * n), sharey=True, sharex=True)
+
+    if n == 1 and m == 1:
+        axes = np.array([[axes]])  # S'assurer que axes soit toujours une matrice 2D
+    elif n == 1:
+        axes = np.array([axes])  # S'assurer que axes soit toujours une matrice 2D
+    elif m == 1:
+        axes = np.array([[ax] for ax in axes])  # S'assurer que axes soit toujours une matrice 2D
+
+    for shape_idx, shape in enumerate(shapes):
+        for config_idx, config in enumerate(configs):
+            ax = axes[shape_idx, config_idx]
+
+            
+            for scenario in scenario_cases:
+                if params[scenario]['global']['tariff']['shape'] == shape and params[scenario]['global']['tariff']['configuration'] == config:
+                    # Sélectionner le dataframe correspondant
+                    df = STORAGE_RESULT.get(scenario)
+
+                    # Filtrer les données en fonction de year_plot, start_hour et end_hour
+                    df_filtered = df[(df['year'] == year_plot) & 
+                                        (df['hour'] >= start_hour) & 
+                                        (df['hour'] <= end_hour)]
+
+                    # Tracer les données
+                    #df_filtered['dispatch']*= 10e3
+                    ax.plot(df_filtered['hour'], df_filtered['total_demand'], label=f'Load during withdrawal', color='b') # injection_load
+                    #ax.plot(df_filtered['hour'], df_filtered['gridload'], label=f'Grid load ', color='g')
+                    ax.plot(df_filtered['hour'], df_filtered['gridload'], label='Grid load', color='g')
+                    ax.plot(df_filtered['hour'], df_filtered['injection_load'], label=f'load during injection ', color='r')
+                    
+                    if shape == "piecewise":
+                        ax.plot(df_filtered['hour'], df_filtered['capacity limit'], label=f'Capacity Limit', color='r', linestyle='--')
+                        ax.plot(df_filtered['hour'], df_filtered['capacity threshold'], label=f'Capacity Threshold ', color='m', linestyle='--')
+
+            # Ajouter les titres et légendes
+            ax.set_title(f'{shape} - {config}')
+            if shape_idx == n - 1:  # Ajouter l'étiquette de l'axe des abscisses uniquement pour la dernière rangée
+                ax.set_xlabel('Hour')
+            if config_idx == 0:  # Ajouter l'étiquette de l'axe des ordonnées uniquement pour la première colonne
+                ax.set_ylabel('Power(MW)')
+            ax.legend()
+            ax.grid(True)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir, "ex-ante_ex-post_dispatch_separated_comparison.png"), dpi=350)
+
+    return None
 
 
 
