@@ -20,7 +20,18 @@ def readLoadPrice():
     LOAD_FILE = os.path.join(DATA_PATH, "compiled_load.csv")
     LOAD_PRICE_FILE = os.path.join(DATA_PATH, "compiled_price.csv")
     
-    return pd.read_csv(LOAD_FILE), pd.read_csv(LOAD_PRICE_FILE)
+    # Read CSV files
+    load_df = pd.read_csv(LOAD_FILE)
+    price_df = pd.read_csv(LOAD_PRICE_FILE)
+    
+    load_df['year'] = load_df['Time'].str.split('/').str[-1].str[:4].astype(int)
+    price_df['year'] = price_df['Time'].str.split('/').str[-1].str[:4].astype(int)
+
+    # Create "t" as the time step within each year
+    load_df['t'] = load_df.groupby('year').cumcount()
+    price_df['t'] = price_df.groupby('year').cumcount()
+    
+    return load_df, price_df
     
 
 
@@ -35,14 +46,22 @@ def runStorageDispatchCases(params, scenario_cases, SHADOW_PRICE, base_tariff, D
     
     STORAGE_RESULT={}
     
+    #directory to save data
+    output_dir = 'results/CSV'
+    os.makedirs(output_dir, exist_ok=True)
+    
      
     for scenario in scenario_cases:
         print(scenario)
         df_combined = pd.DataFrame()
         for year in range(start, end + 1):
             print(year)
-            shadow_price = SHADOW_PRICE[year]
-            df_load = DF_LOAD[year]
+            #shadow_price = SHADOW_PRICE[SHADOW_PRICE['year'] == year]['Day-ahead Total Load Forecast [MW]'] 
+            #df_load = DF_LOAD[DF_LOAD['year'] == year]['Day-ahead Price [EUR/MWh']
+            shadow_price = SHADOW_PRICE[SHADOW_PRICE['year'] == year]
+            shadow_price = shadow_price.reset_index(drop=True)
+            df_load = DF_LOAD[DF_LOAD['year'] == year]
+            df_load = df_load.reset_index(drop=True)
             storage_dispatch = bat_optimize_(params, shadow_price, df_load, scenario, size, base_tariff, VOLL, delta)
             current_data = storage_dispatch.info["data"]
             current_data['Pc'] = current_data['Pc'] * (-1)
@@ -80,3 +99,76 @@ def runStorageDispatchCases(params, scenario_cases, SHADOW_PRICE, base_tariff, D
     results_price.to_csv(os.path.join('results/CSV', f"recovered_costs_by_price.csv"), index=False)
 
     return STORAGE_RESULT
+    
+    
+    
+def runStorageDispatchSensitivitydelta(params, scenario_cases, SHADOW_PRICE, base_tariff, DF_LOAD):
+    
+    start=int(params[scenario_cases[0]]['global']['config']['start']) # start year for horizon simualtion
+    end=int(params[scenario_cases[0]]['global']['config']['end']) # end year for horizon simulation
+    VOLL = float(params[scenario_cases[0]]['global']['network']['VOLL'])
+    size= int(params[scenario_cases[0]]['global']['parameter']['size'])
+    
+    STORAGE_RESULT={}
+    output_dir_csv = 'results/CSV'
+    os.makedirs(output_dir_csv, exist_ok=True)
+    
+    for scenario in scenario_cases:
+        print(scenario)
+        delta = float(params[scenario]['global']['tariff']['delta'])
+        df_combined = pd.DataFrame()
+        for year in range(start, end + 1):
+            print(year)
+            shadow_price = SHADOW_PRICE[SHADOW_PRICE['year'] == year]
+            shadow_price = shadow_price.reset_index(drop=True)
+            df_load = DF_LOAD[DF_LOAD['year'] == year]
+            df_load = df_load.reset_index(drop=True)
+            storage_dispatch = bat_optimize_(params, shadow_price, df_load, scenario, size, base_tariff, VOLL, delta)
+            current_data=storage_dispatch.info["data"]
+            current_data['Pc'] = current_data['Pc'] * (-1)
+            current_data['year'] = year
+            # Concatenate the current data to the overall DataFrame
+            df_combined = pd.concat([df_combined, current_data], ignore_index=True)
+        
+        df_combined['price'] = df_combined["base_price"] + df_combined["tariff"]
+        df_combined['dispatch'] = df_combined["Pd"] + df_combined["Pc"]
+        
+        STORAGE_RESULT[scenario] = df_combined
+        df_combined.to_csv(os.path.join(output_dir_csv, f"storage_result_{scenario}.csv"), index=False)
+
+    return STORAGE_RESULT
+
+
+def runStorageDispatchSensitivityShare(params, scenario_cases, SHADOW_PRICE, base_tariff, DF_LOAD):
+    
+    start=int(params[scenario_cases[0]]['global']['config']['start']) # start year for horizon simualtion
+    end=int(params[scenario_cases[0]]['global']['config']['end']) # end year for horizon simulation
+    VOLL = float(params[scenario_cases[0]]['global']['network']['VOLL'])
+    size= int(params[scenario_cases[0]]['global']['parameter']['size'])
+    delta = float(params[scenario_cases[0]]['global']['tariff']['delta'])
+    
+    STORAGE_RESULT={}
+    for scenario in scenario_cases:
+        print(scenario)
+        df_combined = pd.DataFrame()
+        for year in range(start, end + 1):
+            shadow_price = SHADOW_PRICE[SHADOW_PRICE['year'] == year]
+            shadow_price = shadow_price.reset_index(drop=True)
+            df_load = DF_LOAD[DF_LOAD['year'] == year]
+            df_load = df_load.reset_index(drop=True)
+            storage_dispatch = bat_optimize_(params, shadow_price, df_load, scenario, size, base_tariff, VOLL, delta)
+            current_data=storage_dispatch.info["data"]
+            current_data['Pc'] = current_data['Pc'] * (-1)
+            current_data['year'] = year
+            # Concatenate the current data to the overall DataFrame
+            df_combined = pd.concat([df_combined, current_data], ignore_index=True)
+        
+        df_combined['price'] = df_combined["base_price"] + df_combined["tariff"]
+        df_combined['dispatch'] = df_combined["Pd"] + df_combined["Pc"]
+        
+        STORAGE_RESULT[scenario] = df_combined
+    
+    return STORAGE_RESULT
+
+
+
