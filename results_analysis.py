@@ -23,19 +23,18 @@ from matplotlib.ticker import ScalarFormatter
 
 
 
-# MAIN PLOTING FUNCTION 
 def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, params):
     
     year_plot= int(params[scenario_cases[0]]['global']['plot']['year_plot'])
     start_hour=int(params[scenario_cases[0]]['global']['plot']['start_hour'])
     end_hour= int(params[scenario_cases[0]]['global']['plot']['end_hour'])
     
-    #make directory for plots
+    #Plot hourly storage dipatch for each scenario 
     
-    output_dir = 'results/plots/storage_dispatch'
-    os.makedirs(output_dir, exist_ok=True)
+    #for each scenario
     
-    #Plot hourly storage dipatch for each scenario as sngle plot
+    output_dir_plot = 'results/plots/storage_dispatch'
+    os.makedirs(output_dir_plot, exist_ok=True)
     
     for scenario in scenario_cases:
         df = STORAGE_RESULT[scenario].loc[(STORAGE_RESULT[scenario]['year'] == year_plot) & (STORAGE_RESULT[scenario]['hour'].between(start_hour, end_hour))]; df = df.set_index('hour')
@@ -43,10 +42,10 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
         labels_storage = ['charge', 'discharge', 'tariff_level']
         colors_storage= ['hotpink', 'darkcyan', 'black']
         fig_storagedispatch, ax1= hourlyStorageDispatch(labels_storage, colors_storage, df_area=df[['Pc', 'Pd']], df_line=df[['tariff']], sto_level=True, legend=True)
-        fig_storagedispatch.savefig(os.path.join(output_dir, f'storage_dispatch_{scenario}.png'), dpi=350)
+        fig_storagedispatch.savefig(os.path.join(output_dir_plot, f'storage_dispatch_{scenario}.png'), dpi=350)
     
     
-    #for all scenarios in one 
+        #for all scenarios 
     num_scenarios = len(scenario_cases)
     labels_storage = ['charge', 'discharge', 'tariff_level']
     colors_storage = ['hotpink', 'darkcyan', 'black']
@@ -57,7 +56,7 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
                         scenario_cases[2]: params[scenario_cases[2]]['global']['tariff']['shape'],
                         scenario_cases[3]: params[scenario_cases[3]]['global']['tariff']['shape'],
                         }
-    
+     
     for i, scenario in enumerate(scenario_cases):
         df = STORAGE_RESULT[scenario].loc[(STORAGE_RESULT[scenario]['year'] == year_plot) & (STORAGE_RESULT[scenario]['hour'].between(start_hour, end_hour))]
         df = df.set_index('hour')
@@ -70,25 +69,26 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
 
     axes[-1].legend(loc='upper center', bbox_to_anchor=(0.5, -0.25), ncol=num_scenarios*2, fontsize=12, frameon=False)
 
-    plt.savefig(os.path.join(output_dir, f'HourlystorageDispatchCombine.png'), dpi=350)    
+    plt.savefig(os.path.join(output_dir_plot, f'HourlystorageDispatchCombined.png'), dpi=350)    
 
-    
     #Plot comparison storage dispatch vs price
+    
     dispatch_price ={}
     
+    
     for scenario in scenario_cases:
+        #df1 = STORAGE_RESULT[scenario].loc[(STORAGE_RESULT[scenario]['year'] == year_plot)] 
         df1 = STORAGE_RESULT[scenario]
         dispatch = df1[['Pc', 'Pd', 'price']] 
         dispatch_price[scenario] = dispatch
     # First option: Charging and discgarging are separated
     fig_dispatchprice_1= plotStorageDispatchPrice(dispatch_price)
-    fig_dispatchprice_1.savefig(os.path.join(output_dir, f'storage_dispatch_price_comparison_{year_plot}.png'), dpi=350) 
+    fig_dispatchprice_1.savefig(os.path.join(output_dir_plot, f'storage_dispatch_price_comparison_{year_plot}.png'), dpi=350) 
     # second option: Charging and discgarging are combined
     fig_dispatchprice_2= plotStorageDispatchPrice_2(dispatch_price)
-    fig_dispatchprice_2.savefig(os.path.join(output_dir, f'storage_dispatch_price_comparison_2_{year_plot}.png'), dpi=350)
+    fig_dispatchprice_2.savefig(os.path.join(output_dir_plot, f'storage_dispatch_price_comparison_2_{year_plot}.png'), dpi=400)
 
-    
-    
+        
     #Tariff signal comparison
     tariff_signals = {}
     
@@ -98,8 +98,9 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
         tariff_signals[scenario] = load_tariff
     
     fig_tariffsignal= plotTariffSignals(tariff_signals)
-    fig_tariffsignal.savefig(os.path.join(output_dir, f'tariff_signals_comparison_{year_plot}.png'), dpi=300)
 
+
+    fig_tariffsignal.savefig(os.path.join(output_dir_plot, f'tariff_signals_comparison_{year_plot}.jpg'), dpi=600)
     
     netloadTariff={}
     
@@ -107,17 +108,14 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
         df3 = STORAGE_RESULT[scenario].loc[(STORAGE_RESULT[scenario]['year'] == year_plot)]
         netloadTariff[scenario]= df3
     fig_tariff_netload = plotNetloadtariff(netloadTariff)
-    fig_tariff_netload.savefig(os.path.join(output_dir, f'netload_tariff.png'), dpi=300)
-
+    fig_tariff_netload.savefig(os.path.join(output_dir_plot, f'netload_tariff.jpg'), dpi=600)
     
     #Plot netload vs revenue
     combined_df1={}
     combined_df2={}
     combined_df ={}
     selected_df={}
-    
     #for scenario, df in STORAGE_RESULT.items():
-        
     # Concatenate DataFrames for each scenario
     combined_df1= pd.concat([df.assign(scenario=scenario) for scenario, df in STORAGE_RESULT.items()], ignore_index=True)
     # Convert 'year' column to string
@@ -136,12 +134,10 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     # Plot netload revenue line
     fig_profit_netload = plotNetloadRevenue_line(pd.DataFrame(combined_df1))
     # Write HTML file
-    fig_profit_netload.write_html(os.path.join(output_dir, f'netload_profit.html'))
+    fig_profit_netload.write_html(os.path.join(output_dir_plot, f'netload_profit.html'))
     
-    #STOP OK
-    # Only revenue to avoid negative part
-    
-    combined_df2= pd.concat([df.assign(scenario=scenario) for scenario, df in STORAGE_RESULT.items()], ignore_index=True)
+    # Only revenue to avoid negetaive part
+    combined_df2 = pd.concat([df.assign(scenario=scenario) for scenario, df in STORAGE_RESULT.items()], ignore_index=True)
     combined_df2['year'] = combined_df2['year'].astype(str)
     combined_df2['revenue'] = combined_df2['Pd']*combined_df2['price']
     #selected_tariff = ["without tarif", "flat", "proportional", "piecewise"]
@@ -154,102 +150,98 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
         scenario_tariff_mapping[scenario] = selected_tariff[i]
     combined_df2['scenario'] = combined_df2['scenario'].replace(scenario_tariff_mapping)
     fig_revenue_netload = plotNetloadRevenue_line_2(pd.DataFrame(combined_df2))
-    fig_revenue_netload.write_html(os.path.join(output_dir, f'netload_revenue.html'))
-    
-    
+    fig_revenue_netload.write_html(os.path.join(output_dir_plot, f'netload_revenue.html'))
     
     #Revenue vs tariff 
     fig_revenue_tariff= plotTariffRevenue_line(pd.DataFrame(combined_df2))
-    fig_revenue_tariff.write_html(os.path.join(output_dir, f'Tariff_revenue.html'))
-
-
+    fig_revenue_tariff.write_html(os.path.join(output_dir_plot, f'Tariff_revenue.html'))
 
     # Plot Storage dispatch vs price over years 
     selected_scenarios = scenario_cases[-3:]
     combined_df = pd.concat([df.assign(scenario=scenario) for scenario, df in STORAGE_RESULT.items()], ignore_index=True)
     combined_df['year'] = combined_df['year'].astype(str)
     selected_df = combined_df[(combined_df['scenario'].isin(selected_scenarios)) & (combined_df['year'].isin(selected_years[-2:]))]
-    
+    #scenario_mapping = {scenario_cases[0]: 'without tariff', scenario_cases[1]: 'flat ', scenario_cases[2]: 'proportional', scenario_cases[3]: 'piecewise'}
     scenario_mapping = {scenario_cases[0]: params[scenario_cases[0]]['global']['tariff']['shape'], 
                         scenario_cases[1]: params[scenario_cases[1]]['global']['tariff']['shape'], 
                         scenario_cases[2]: params[scenario_cases[2]]['global']['tariff']['shape'], 
                         scenario_cases[3]: params[scenario_cases[3]]['global']['tariff']['shape']}
     selected_df['scenario'] = selected_df['scenario'].replace(scenario_mapping)
     fig_dispatch_year = plotStorageDispatchYears(selected_years[-2:], selected_scenarios, pd.DataFrame(selected_df))
-    fig_dispatch_year.write_html(os.path.join(output_dir, f'storage_dispatch_tariff_comparison.html'))
-
+    fig_dispatch_year.write_html(os.path.join(output_dir_plot, f'storage_dispatch_tariff_comparison.html'))
     
     #Plot storage dispatch volume
     selected_scenarios = scenario_cases[-3:]
     combined_df = pd.concat([df.assign(scenario=scenario) for scenario, df in STORAGE_RESULT.items()], ignore_index=True)
     combined_df['year'] = combined_df['year'].astype(str)
     selected_df = combined_df[(combined_df['scenario'].isin(selected_scenarios)) & (combined_df['year'].isin(selected_years[-3:]))]
+    #scenario_mapping = {scenario_cases[0]: 'without tariff', scenario_cases[1]: 'flat ', scenario_cases[2]: 'proportional', scenario_cases[3]: 'piecewise'}
     scenario_mapping = {scenario_cases[0]: params[scenario_cases[0]]['global']['tariff']['shape'], 
                         scenario_cases[1]: params[scenario_cases[1]]['global']['tariff']['shape'], 
                         scenario_cases[2]: params[scenario_cases[2]]['global']['tariff']['shape'], 
                         scenario_cases[3]: params[scenario_cases[3]]['global']['tariff']['shape']}
     selected_df['scenario'] = selected_df['scenario'].replace(scenario_mapping)
     fig_dispatch_year_2 = plotStorageDispatchYears_2(pd.DataFrame(selected_df))
-    fig_dispatch_year_2.write_html(os.path.join(output_dir, f'storage_dispatch_tariff_comparison_volume.html'))
-
+    fig_dispatch_year_2.write_html(os.path.join(output_dir_plot, f'storage_dispatch_tariff_comparison_volume.html'))
+    
     # Plot volume amount for all years
     selected_scenarios = scenario_cases[-4:]
     combined_df = pd.concat([df.assign(scenario=scenario) for scenario, df in STORAGE_RESULT.items()], ignore_index=True)
     combined_df['year'] = combined_df['year'].astype(str)
     selected_df = combined_df[(combined_df['scenario'].isin(selected_scenarios)) & (combined_df['year'].isin(selected_years[-3:]))]
+    #scenario_mapping = {scenario_cases[0]: 'without tariff', scenario_cases[1]: 'flat ', scenario_cases[2]: 'proportional', scenario_cases[3]: 'piecewise'}
     scenario_mapping = {scenario_cases[0]: params[scenario_cases[0]]['global']['tariff']['shape'], 
                         scenario_cases[1]: params[scenario_cases[1]]['global']['tariff']['shape'], 
                         scenario_cases[2]: params[scenario_cases[2]]['global']['tariff']['shape'], 
                         scenario_cases[3]: params[scenario_cases[3]]['global']['tariff']['shape']}
     selected_df['scenario'] = selected_df['scenario'].replace(scenario_mapping)
     fig_dispatch_vol=plotDispatchVolume(pd.DataFrame(selected_df))
-    fig_dispatch_vol.write_html(os.path.join(output_dir, f'storage_dispatch_volume.html'))
+    fig_dispatch_vol.write_html(os.path.join(output_dir_plot, f'storage_dispatch_volume.html'))
         
+        # compare revenue for all scenarios:
+        
+    plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot)
+    plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir_plot)
     
-    # compare revenue for all scenarios:    
-    plot_revenue_comparison(STORAGE_RESULT, params, output_dir)
-    plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir)
     return None 
 
 
-
-#STEP2 
 
 def plotStorageDispatchSensitivitydelta(params, STORAGE_RESULT, categories):
     
-    output_dir = 'results/plots/storage_dispatch'
-    os.makedirs(output_dir, exist_ok=True)
-    
+    output_dir_plot = 'results/plots/storage_dispatch'
+    os.makedirs(output_dir_plot, exist_ok=True)
     #average revenue for sensitivity on delta 
-    plot_storage_revenues(STORAGE_RESULT, params, categories, output_dir)
+    plot_storage_revenues(STORAGE_RESULT, params, categories, output_dir_plot)
     #stacked revenues for snesitivity on delta 
-    plot_stacked_revenues(STORAGE_RESULT, params, output_dir)
+    plot_stacked_revenues(STORAGE_RESULT, params, output_dir_plot)
     # Stacked market and Tariff revenue only
-    plot_stacked_revenues_2(STORAGE_RESULT, params, output_dir)
+    plot_stacked_revenues_2(STORAGE_RESULT, params, output_dir_plot)
     # stacked bars with percentage
-    plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir)
+    plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir_plot)
 
-    
     return None
-    
+
 
 def plotStorageDispatchSensitivityShare(params, STORAGE_RESULT):
     
-    output_dir = 'results/plots/storage_dispatch'
-    os.makedirs(output_dir, exist_ok=True)
-    plot_stacked_revenues_by_shape(STORAGE_RESULT, params, output_dir)
-    plot_stacked_revenues_by_shape_horizontal(STORAGE_RESULT, params, output_dir)
-    plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir)
+    output_dir_plot = 'results/plots/storage_dispatch'
+    os.makedirs(output_dir_plot, exist_ok=True)
+    plot_stacked_revenues_by_shape(STORAGE_RESULT, params, output_dir_plot)
+    plot_stacked_revenues_by_shape_horizontal(STORAGE_RESULT, params, output_dir_plot)
+    plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir_plot)
 
     return None 
 
-    
+
+
 def plotStorageConfiguration(scenario_cases, STORAGE_RESULT, params):
     
+    output_dir_plot = 'results/plots/storage_dispatch'
+    os.makedirs(output_dir_plot, exist_ok=True)
     # Compare Storage dispatch from ex-ante and ex-post tariff 
-    output_dir = 'results/plots/storage_dispatch'
-    plotStorageDispatchConfiguration(scenario_cases, STORAGE_RESULT, params, output_dir)
-    plotStorageDispatchConfiguration_2(scenario_cases, STORAGE_RESULT, params, output_dir)
+    plotStorageDispatchConfiguration(scenario_cases, STORAGE_RESULT, params, output_dir_plot)
+    plotStorageDispatchConfiguration_2(scenario_cases, STORAGE_RESULT, params, output_dir_plot)
     
     
     # Create a dictionary to map shapes to subplot indices
@@ -262,7 +254,7 @@ def plotStorageConfiguration(scenario_cases, STORAGE_RESULT, params):
     colors = ['b', 'r', 'g', 'c', 'm', 'y', 'k']  # List of colors for different configurations
     config_color_map = {}  # Map to track the colors used for each config in each shape
     
-    for ((node, scenario), df) in STORAGE_RESULT.items():
+    for scenario, df in STORAGE_RESULT.items():
         # Extracting the data
         df['revenue_net'] = df['dispatch'] * df['price']
         annual_revenue = df.groupby('year')['revenue_net'].sum().tolist()
@@ -309,20 +301,15 @@ def plotStorageConfiguration(scenario_cases, STORAGE_RESULT, params):
         ax.grid(True)
 
     plt.tight_layout()
-    plt.savefig(os.path.join('results/plots/storage_dispatch', "ex-ante_ex-post_revenue_comparison.png"), dpi=350)
+    plt.savefig(os.path.join(output_dir_plot, "ex-ante_ex-post_revenue_comparison.png"), dpi=400)
     
     return None
 
 
 
 
+#.............................HELPER FUNCTIONS.............................................
 
-
-
-# ..................................................................HELPER FUNCTION 
-
-
-# hourly storage dispatch in different file 
 def hourlyStorageDispatch(labels, colors, sto_level=False, df_area=None, df_line=None, legend=True, legend_position='upper center', legend_col_no=8, figsize=(15,6), bottom_fix=0.3, fontsize=12, ticksize=12, legfontsize=12 ):
     
     fig, ax1 = plt.subplots(figsize=figsize)
@@ -360,7 +347,6 @@ def hourlyStorageDispatch(labels, colors, sto_level=False, df_area=None, df_line
     return fig, ax1
 
 
-#hourly storage dispatch in a single file 
 def hourlyStorageDispatch_2(labels, colors, sto_level=False, df_area=None, df_line=None, legend=True, legend_position='upper center', legend_col_no=8, figsize=(15.2,5.6), bottom_fix=0.1, fontsize=12, ticksize=12, legfontsize=12, ax1=None):
     if ax1 is None:
         fig, ax1 = plt.subplots(figsize=figsize)
@@ -395,10 +381,14 @@ def hourlyStorageDispatch_2(labels, colors, sto_level=False, df_area=None, df_li
     plt.tight_layout()
     plt.subplots_adjust(bottom= bottom_fix, top=0.98, left=0.05, right=0.95)
     
+    
+
     if ax1 is None:
         return fig, ax1
     else:
         return ax1
+
+
 
 def plotStorageDispatchPrice(data): 
     
@@ -427,6 +417,7 @@ def plotStorageDispatchPrice(data):
     return plt.gcf()
 
 
+
 def plotStorageDispatchPrice_2(data): 
     
     fig, axs = plt.subplots(2, 2, figsize=(9, 9))
@@ -451,6 +442,7 @@ def plotStorageDispatchPrice_2(data):
         
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     return plt.gcf()
+
 
 
 def plotTariffSignals(tariff_signals):
@@ -520,6 +512,7 @@ def plotNetloadtariff(data):
     return plt.gcf()
 
 
+
 def plotNetloadRevenue_line(df):
     fig = px.line(df, x='net_load', y='profit', color='year', facet_col="scenario", labels={'net_load': 'Net load (MW)', 'profit': 'Profit (EUR/h)'})
     return fig
@@ -531,6 +524,7 @@ def plotNetloadRevenue_line_2(df):
     fig = px.line(filtered_df, x='net_load', y='revenue', color='year', facet_col="scenario", labels={'net_load': 'Net load (MW)', 'revenue': 'Revenue (EUR/h)'}, template="simple_white", width=960, height=600)
     return fig
 
+
 def plotTariffRevenue_line(df):
     fig = px.line(df, x='tariff', y='revenue', color='year', facet_col="scenario", labels={'tariff': 'Tariff (EUR/MWh)', 'revenue': 'Revenue (EUR/h)'}, template="simple_white", width=960, height=600)
     return fig
@@ -539,17 +533,19 @@ def plotStorageDispatchYears(years, scenarios,df):
     fig = px.scatter(df, x='price', y='dispatch', facet_row="year", facet_col='scenario', facet_col_wrap=4, labels={'price': 'Price (EUR/MWh)', 'dispatch': 'Dispatch (MW)'})    
     return fig
 
-
 def plotStorageDispatchYears_2(df):
     df['Pc'] = df['Pc'].abs()
+    
     # Create scatter plot for Pd
     fig = px.scatter(df, x="price", y="dispatch", size="Pd", facet_row="year", facet_col="scenario", 
                      hover_name="year", log_x=False, size_max=60, width=900, height=800, labels={'price': 'Price (EUR/MWh)', 'dispatch': 'Energy (MWh)'}, template="simple_white")
+
     # Add trace for Pc with a different color
     num_traces = len(fig.data)
     for i in range(num_traces):
         fig.add_trace(px.scatter(df, x="price", y="dispatch", size="Pc", facet_row="year", facet_col="scenario", 
                              hover_name="year", log_x=False, size_max=60).update_traces(marker=dict(color='brown')).data[i])
+
     return fig
 
 
@@ -566,84 +562,98 @@ def plotDispatchVolume(df):
              height=900, width=1080, template="simple_white")
 
     # Ajouter les valeurs sur les barres
-    fig.update_traces(texttemplate='%{y:.2f}', textposition='outside')
-    
-    
+    fig.update_traces(texttemplate='%{y:.2f}', textposition='outside')    
     return fig
 
 
-
-def plot_revenue_comparison(STORAGE_RESULT, params, output_dir):
-    # Obtenir toutes les formes uniques
+def plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
+    alpha=0.85
+    # Get all unique shapes
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Couleurs pour Market Revenue, Tariff Revenue, Total Revenue
-    hatches = ['-', '+', 'x', 'o', 'O', '.', '*']  # Différents types de hachures
-    bar_width = 0.2
+    colors = ['#ff7f0e', '#1f77b4', 'grey']  # Colors for Tariff Revenue, Market Revenue, and Std Dev of Total Revenue
+    bar_width = 0.3
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(9, 7))
 
     shape_idx = 0
-    shapes_labels = []  # Pour stocker les étiquettes des formes
-    num_scenarios_per_shape = []  # Pour stocker le nombre de scénarios par forme
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
 
     for shape in shapes:
         average_market_revenues = []
         average_tariff_revenues = []
         average_total_revenues = []
+        std_total_revenues = []
 
         for scenario, df_delta in STORAGE_RESULT.items():
             if params[scenario]['global']['tariff']['shape'] == shape:
-                # Calculer les revenus
+                # Calculate revenues
                 df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
                 df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
 
-                # Calculer les revenus annuels moyens
-                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum().mean()
-                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum().mean()
+                # Calculate annual revenues
+                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum()
+                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum()
                 total_revenue = annual_market_revenue + annual_tariff_revenue
 
-                # Stocker les valeurs
-                average_market_revenues.append(annual_market_revenue)
-                average_tariff_revenues.append(annual_tariff_revenue)
-                average_total_revenues.append(total_revenue)
+                # Store values
+                average_market_revenues.append(annual_market_revenue.mean())
+                average_tariff_revenues.append(annual_tariff_revenue.mean())
+                average_total_revenues.append(total_revenue.mean())
+                std_total_revenues.append(total_revenue.std())
 
-        # Convertir les listes en arrays numpy
+        # Convert lists to numpy arrays
         average_market_revenues = np.array(average_market_revenues)
         average_tariff_revenues = np.array(average_tariff_revenues)
         average_total_revenues = np.array(average_total_revenues)
+        std_total_revenues = np.array(std_total_revenues)
 
-        # Indices pour les barres
+        # Indices for the bars
         index = np.arange(len(average_market_revenues))
 
-        # Décalage pour les groupes de barres
-        offset = shape_idx * bar_width * 4
+        # Offset for the group of bars
+        offset = shape_idx * bar_width * 2
 
-        # Tracer les barres
-        ax.bar(index + offset, average_market_revenues, bar_width, color=colors[0], edgecolor='black', hatch=hatches[shape_idx % len(hatches)], label='Market Revenue' if shape_idx == 0 else "")
-        ax.bar(index + offset + bar_width, average_tariff_revenues, bar_width, color=colors[1], edgecolor='black', hatch=hatches[shape_idx % len(hatches)], label='Tariff Revenue' if shape_idx == 0 else "")
-        ax.bar(index + offset + 2 * bar_width, average_total_revenues, bar_width, color=colors[2], edgecolor='black', hatch=hatches[shape_idx % len(hatches)], label='Total Revenue' if shape_idx == 0 else "")
+        # Plot stacked bars for tariff and market revenues
+        bars1 = ax.bar(index + offset, average_tariff_revenues, bar_width, color=colors[0], edgecolor='black', label='Tariff Revenue' if shape_idx == 0 else "", alpha=alpha)
+        bars2 = ax.bar(index + offset, average_market_revenues, bar_width, bottom=average_tariff_revenues, color=colors[1], edgecolor='black', label='Market Revenue' if shape_idx == 0 else "", alpha=alpha)
 
-        # Ajouter les labels pour les formes
+        # Plot bars for standard deviation of total revenue
+        bars3 = ax.bar(index + offset + bar_width, std_total_revenues, bar_width, color=colors[2], edgecolor='black', label='Std Dev of Total Revenue' if shape_idx == 0 else "", alpha=alpha)
+
+        # Add annotations for tariff, market, and standard deviation revenues
+        for bar in bars1:
+            height = bar.get_height()
+            ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontsize=8)
+        for bar1, bar2 in zip(bars1, bars2):
+            height1 = bar1.get_height()
+            height2 = bar2.get_height()
+            total_height = height1 + height2
+            ax.annotate(f'{height2:.2f}', xy=(bar2.get_x() + bar2.get_width() / 2, total_height), xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontsize=8)
+        for bar in bars3:
+            height = bar.get_height()
+            ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontsize=8)
+
+        # Add shape labels
         shapes_labels.extend([f'{shape}'])
         num_scenarios_per_shape.append(len(average_market_revenues))
         shape_idx += 1
 
-    # Ajuster les positions des ticks et leurs labels
+    # Adjust tick positions and labels
     total_bars = sum(num_scenarios_per_shape)
-    ticks_positions = np.arange(total_bars) * bar_width * 4 + bar_width
+    ticks_positions = np.arange(total_bars) * bar_width * 2 + bar_width / 2
     ax.set_xticks(ticks_positions)
-    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)  # Augmenter la taille des labels des ticks
+    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)  # Increase tick label size
 
-    ax.set_xlabel('Shapes', fontsize=10)  # Augmenter la taille de l'étiquette de l'axe x
-    ax.set_ylabel('Average Revenue (EUR/y)', fontsize=10)  # Augmenter la taille de l'étiquette de l'axe y
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=3, fontsize=10)  # Augmenter la taille de la légende
+    ax.set_xlabel('Shapes', fontsize=10)  # Increase x-axis label size
+    ax.set_ylabel('Revenue (EUR/y)', fontsize=10)  # Increase y-axis label size
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fontsize=10)  # Increase legend size
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "revenue_comparison.png"), dpi=350)
-    return None 
-
-
-def plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir):
+    plt.savefig(os.path.join(output_dir_plot, "revenue_comparison.jpg"), dpi=600)
+    
+    
+def plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
     
     # Obtenir toutes les formes uniques sauf "without_tariff"
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
@@ -695,15 +705,17 @@ def plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir):
 
     # Ajouter une légende commune en bas de la figure
     handles, labels = ax.get_legend_handles_labels()
-    
+    #fig.legend(handles, labels, loc='lower center', bbox_to_anchor=(0.5, -0.05), ncol=1, fontsize=12)  # Augmenter la taille de la légende
+
+
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "revenue_tariff_comparison.png"), dpi=350)
+    plt.savefig(os.path.join(output_dir_plot, "revenue_tariff_comparison.png"), dpi=600)
     
     return None
 
 
 
-def plot_storage_revenues(STORAGE_RESULT, params, categories, output_dir):
+def plot_storage_revenues(STORAGE_RESULT, params, categories, output_dir_plot):
     
     fig, axes = plt.subplots(3, 3, figsize=(15, 15))
 
@@ -775,13 +787,11 @@ def plot_storage_revenues(STORAGE_RESULT, params, categories, output_dir):
         ax.grid(True)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "Sensitivity_on_delta.png"), dpi=350)
+    plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_delta.png"), dpi=400)
     return None
 
 
-
-def plot_stacked_revenues(STORAGE_RESULT, params, output_dir):
-    
+def plot_stacked_revenues(STORAGE_RESULT, params, output_dir_plot):
     deltas = []
     average_market_revenues = []
     average_tariff_revenues = []
@@ -845,13 +855,11 @@ def plot_stacked_revenues(STORAGE_RESULT, params, output_dir):
     annotate_bars(bars3)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "Sensitivity_on_delta_stacked.png"), dpi=350)
-    
+    plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_delta_stacked.png"), dpi=350)
     return None 
 
 
-def plot_stacked_revenues_2(STORAGE_RESULT, params, output_dir):
-    
+def plot_stacked_revenues_2(STORAGE_RESULT, params, output_dir_plot):
     deltas = []
     average_market_revenues = []
     average_tariff_revenues = []
@@ -911,16 +919,16 @@ def plot_stacked_revenues_2(STORAGE_RESULT, params, output_dir):
     annotate_bars(bars2, average_tariff_revenues)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "Sensitivity_on_delta_stacked_2.png"), dpi=350)
+    plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_delta_stacked_2.png"), dpi=350)
     return None
 
 
 
-def plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir):
-    
+def plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir_plot):
     deltas = []
     average_market_revenues = []
     average_tariff_revenues = []
+    std_total_revenues = []
 
     for scenario, df_delta in STORAGE_RESULT.items():
         # Calculer les revenus
@@ -931,10 +939,14 @@ def plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir):
         # Calculer les revenus annuels moyens
         annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum().tolist()
         annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum().tolist()
+        annual_total_revenue = [m + t for m, t in zip(annual_market_revenue, annual_tariff_revenue)]
         
         # Calculer les revenus moyens
         average_market_revenue = np.mean(annual_market_revenue)
         average_tariff_revenue = np.mean(annual_tariff_revenue)
+        
+        # Calculer la déviation standard des revenus annuels totaux
+        std_total_revenue = np.std(annual_total_revenue)
 
         # Lire le delta
         delta = float(params[scenario]['global']['tariff']['delta'])
@@ -943,27 +955,38 @@ def plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir):
         deltas.append(delta)
         average_market_revenues.append(average_market_revenue)
         average_tariff_revenues.append(average_tariff_revenue)
+        std_total_revenues.append(std_total_revenue)
 
     # Tracer le bar chart empilé
-    fig, ax = plt.subplots(figsize=(8, 6))
+    fig, ax1 = plt.subplots(figsize=(12, 6))
 
     bar_width = 0.35
     index = np.arange(len(deltas))
     
-    bars1 = ax.bar(index, average_market_revenues, bar_width, label='Market Revenue', color='#1f77b4', edgecolor='black')
-    bars2 = ax.bar(index, average_tariff_revenues, bar_width, bottom=average_market_revenues, label='Tariff Revenue', color='#ff7f0e', edgecolor='black')
+    bars1 = ax1.bar(index, average_market_revenues, bar_width, label='Market Revenue', color='#1f77b4', edgecolor='black')
+    bars2 = ax1.bar(index, average_tariff_revenues, bar_width, bottom=average_market_revenues, label='Tariff Revenue', color='#ff7f0e', edgecolor='black')
 
-    ax.set_xlabel('Δ', fontsize=16)
-    ax.set_ylabel('Average Revenue (EUR/y)', fontsize=14)
-    ax.set_xticks(index)
-    ax.set_xticklabels([f'{delta:.2f}' for delta in deltas], fontsize=14)
-    ax.legend(fontsize=12)
+    ax1.set_xlabel('Δ', fontsize=16)
+    ax1.set_ylabel('Average Revenue (EUR/y)', fontsize=14)
+    ax1.set_xticks(index)
+    ax1.set_xticklabels([f'{delta:.2f}' for delta in deltas], fontsize=14)
+
+    # Ajouter un deuxième axe pour la déviation standard des revenus annuels totaux
+    ax2 = ax1.twinx()
+    bars3 = ax2.bar(index + bar_width, std_total_revenues, bar_width, label='Std Dev of Total Revenue', color='grey', edgecolor='black', alpha=0.7)
+
+    ax2.set_ylabel('Std Dev of Total Revenue (EUR/y)', fontsize=14)
+
+    # Déplacer la légende en bas, en dehors du graphique
+    lines, labels = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines + lines2, labels + labels2, loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=3, fontsize=12)
 
     # Annoter chaque barre avec le pourcentage de sa valeur par rapport à la somme des valeurs des barres empilées
     def annotate_bars(bars, revenues, total_revenues):
         for bar, revenue, total_revenue in zip(bars, revenues, total_revenues):
             percentage = (revenue / total_revenue) * 100
-            ax.annotate(f'{percentage:.2f}%', 
+            ax1.annotate(f'{percentage:.2f}%', 
                         xy=(bar.get_x() + bar.get_width() / 2, bar.get_y() + bar.get_height() / 2), 
                         xytext=(0, 0), 
                         textcoords='offset points', 
@@ -978,11 +1001,11 @@ def plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir):
     annotate_bars(bars2, average_tariff_revenues, total_revenues)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "Sensitivity_on_delta_stacked_3.png"), dpi=350)
-    return None
-
-
-def plot_stacked_revenues_by_shape(STORAGE_RESULT, params, output_dir):
+    plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_delta_stacked_3.png"), dpi=350)
+    
+    
+    
+def plot_stacked_revenues_by_shape(STORAGE_RESULT, params, output_dir_plot):
     # Obtenir toutes les formes uniques
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
     colors = ['#1f77b4', '#ff7f0e']  # Couleurs pour Market Revenue et Tariff Revenue
@@ -1054,12 +1077,12 @@ def plot_stacked_revenues_by_shape(STORAGE_RESULT, params, output_dir):
         ax.legend()
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "Sensitivity_on_share_and_shape_stacked.png"), dpi=350)
+    plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_share_and_shape_stacked.png"), dpi=350)
     
     return None
 
 
-def plot_stacked_revenues_by_shape_horizontal(STORAGE_RESULT, params, output_dir):
+def plot_stacked_revenues_by_shape_horizontal(STORAGE_RESULT, params, output_dir_plot):
     # Obtenir toutes les formes uniques
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
     colors = ['#1f77b4', '#ff7f0e']  # Couleurs pour Market Revenue et Tariff Revenue
@@ -1154,11 +1177,12 @@ def plot_stacked_revenues_by_shape_horizontal(STORAGE_RESULT, params, output_dir
         ax.legend()
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "Sensitivity_on_share_and_shape_stacked_horizontal.png"), dpi=400)
+    plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_share_and_shape_stacked_horizontal.png"), dpi=400)
     
     return None
 
-def plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir):
+
+def plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir_plot):
     # Obtenir toutes les formes uniques
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
     colors = ['#1f77b4', '#ff7f0e']  # Couleurs pour Market Revenue et Tariff Revenue
@@ -1248,11 +1272,11 @@ def plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir):
         ax.legend()
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "Sensitivity_on_share_and_shape_stacked_vertical.png"), dpi=350)
+    plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_share_and_shape_stacked_vertical.png"), dpi=400)
     return None
 
 
-def plotStorageDispatchConfiguration(scenario_cases, STORAGE_RESULT, params, output_dir):
+def plotStorageDispatchConfiguration(scenario_cases, STORAGE_RESULT, params, output_dir_plot):
     # Obtenir toutes les formes et configurations uniques
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in scenario_cases))
     configs = sorted(set(params[scenario]['global']['tariff']['configuration'] for scenario in scenario_cases))
@@ -1310,12 +1334,13 @@ def plotStorageDispatchConfiguration(scenario_cases, STORAGE_RESULT, params, out
             ax.grid(True)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "ex-ante_ex-post_dispatch_comparison.jpg"), dpi=600)
+    plt.savefig(os.path.join(output_dir_plot, "ex-ante_ex-post_dispatch_comparison.jpg"), dpi=600)
 
     return None
 
 
-def plotStorageDispatchConfiguration_2(scenario_cases, STORAGE_RESULT, params, output_dir):
+
+def plotStorageDispatchConfiguration_2(scenario_cases, STORAGE_RESULT, params, output_dir_plot):
     # Obtenir toutes les formes et configurations uniques
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in scenario_cases))
     configs = sorted(set(params[scenario]['global']['tariff']['configuration'] for scenario in scenario_cases))
@@ -1333,11 +1358,11 @@ def plotStorageDispatchConfiguration_2(scenario_cases, STORAGE_RESULT, params, o
     fig, axes = plt.subplots(n, m, figsize=(5 * m, 5 * n), sharey=True, sharex=True)
 
     if n == 1 and m == 1:
-        axes = np.array([[axes]])  # S'assurer que axes soit toujours une matrice 2D
+        axes = np.array([[axes]])  
     elif n == 1:
-        axes = np.array([axes])  # S'assurer que axes soit toujours une matrice 2D
+        axes = np.array([axes])  
     elif m == 1:
-        axes = np.array([[ax] for ax in axes])  # S'assurer que axes soit toujours une matrice 2D
+        axes = np.array([[ax] for ax in axes]) 
 
     for shape_idx, shape in enumerate(shapes):
         for config_idx, config in enumerate(configs):
@@ -1375,11 +1400,7 @@ def plotStorageDispatchConfiguration_2(scenario_cases, STORAGE_RESULT, params, o
             ax.grid(True)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "ex-ante_ex-post_dispatch_separated_comparison.png"), dpi=350)
+    plt.savefig(os.path.join(output_dir_plot, "ex-ante_ex-post_dispatch_separated_comparison.png"), dpi=400)
 
     return None
-
-
-
-
 

@@ -180,6 +180,11 @@ def runStorageConfiguration(params, scenario_cases, SHADOW_PRICE, base_tariff, D
     size = int(params[scenario_cases[0]]['global']['parameter']['size'])
     delta = float(params[scenario_cases[0]]['global']['tariff']['delta'])
     
+    start_hour=int(params[scenario_cases[0]]['global']['plot']['start_hour'])
+    end_hour= int(params[scenario_cases[0]]['global']['plot']['end_hour'])
+    
+    
+    
     STORAGE_RESULT={}
     output_dir_csv = 'results/CSV'
     os.makedirs(output_dir_csv, exist_ok=True)
@@ -190,9 +195,11 @@ def runStorageConfiguration(params, scenario_cases, SHADOW_PRICE, base_tariff, D
         df_combined = pd.DataFrame()
         for year in range(start, end + 1):
             print(year)
-            shadow_price = SHADOW_PRICE[SHADOW_PRICE['year'] == year]
+            #shadow_price = SHADOW_PRICE[SHADOW_PRICE['year'] == year]
+            shadow_price = SHADOW_PRICE[(SHADOW_PRICE['year'] == year) & (SHADOW_PRICE['t'].between(start_hour, end_hour))]
             shadow_price = shadow_price.reset_index(drop=True)
-            df_load = DF_LOAD[DF_LOAD['year'] == year]
+            #df_load = DF_LOAD[DF_LOAD['year'] == year]
+            df_load = DF_LOAD[(DF_LOAD['year'] == year) & (DF_LOAD['t'].between(start_hour, end_hour))]
             df_load = df_load.reset_index(drop=True)
             storage_dispatch = bat_optimize_(params, shadow_price, df_load, scenario, size, base_tariff, VOLL, delta)
             current_data = storage_dispatch.info["data"]
