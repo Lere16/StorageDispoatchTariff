@@ -19,7 +19,414 @@ import seaborn as sns
 import statsmodels.api as sm
 import plotly.graph_objects as go
 from matplotlib.ticker import ScalarFormatter
+import matplotlib.gridspec as gridspec
 
+
+
+
+def plotdataAnalysis(load_df, price_df):
+    
+    output_dir_plot = 'results/plots/data_analysis'
+    os.makedirs(output_dir_plot, exist_ok=True)
+    
+    #1. HISTOGRAM OF ELECTRICITY PRICES
+    histogram_plot(price_df, output_dir_plot)
+    
+    #2. AVERAGE ELECTRICITY PRICE 
+    average_price_plot(price_df, output_dir_plot)
+    
+    
+    #3. HEATMAP OF ELECTRICITY PRICES
+    heatmap_plot(price_df, output_dir_plot)    
+    heatmap_plot_2(price_df, output_dir_plot)
+    
+    #3. HEATMAP OF ELECTRICITY PRICE FOR EACH MONTH
+    heatmap_month_plot(price_df, output_dir_plot)
+        
+    # HEATMAP 2
+    heatmap_month_plot_2(price_df, output_dir_plot)
+    
+    # HEATMAP 3
+    heatmap_month_plot_3(price_df, output_dir_plot)
+    
+    # HEATMAP VOLATILITY
+    volatility_heatmap(price_df, output_dir_plot)
+    
+    # ROLLING VOLATILITY
+    rolling_volatility_plot(price_df, output_dir_plot)
+    
+    # BOX PLOT
+    boxplot_prices(price_df, output_dir_plot)
+    
+    
+    return None 
+
+def histogram_plot(price_df, output_dir_plot):
+    sns.set(style="whitegrid")
+    # Création de l'histogramme
+    plt.figure(figsize=(7, 5))
+    sns.histplot(price_df['Day-ahead Price [EUR/MWh]'], bins=70, kde=True, color='blue')
+    # Ajout de titres et d'étiquettes
+    #plt.title('Distribution des prix horaires de l\'électricité\n(Bidding Zone Allemagne)', fontsize=16)
+    plt.xlabel('Electricity price [EUR/MWh]', fontsize=14)
+    plt.ylabel('Frequency', fontsize=14)
+    # Formatage des ticks pour qu'ils soient plus lisibles
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    # Affichage de la figure
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "price_distribution.png"), dpi=400)
+    
+    return None
+
+def average_price_plot(price_df, output_dir_plot ):
+    df1=price_df.copy()
+    df1['Time'] = pd.to_datetime(df1['Time'], format='%d/%m/%Y %H:%M')
+    # Extraction des colonnes pour les années, mois et jours
+    df1['Year'] = df1['Time'].dt.year
+    df1['Month'] = df1['Time'].dt.month
+    df1['Day'] = df1['Time'].dt.day
+    # Calcul des prix moyens mensuels
+    monthly_avg = df1.groupby(['Year', 'Month'])['Day-ahead Price [EUR/MWh]'].mean().reset_index()
+    # Création d'une colonne 'Month-Year' pour l'affichage
+    monthly_avg['Month-Year'] = monthly_avg['Year'].astype(str) + '-' + monthly_avg['Month'].astype(str)
+    # Configuration de style pour un visuel professionnel
+    sns.set(style="whitegrid")
+    # Création du barplot pour les prix moyens mensuels
+    plt.figure(figsize=(14, 8))
+    sns.barplot(x='Month-Year', y='Day-ahead Price [EUR/MWh]', data=monthly_avg, palette='viridis')
+    # Rotation des étiquettes de l'axe X pour une meilleure lisibilité
+    plt.xticks(rotation=90, fontsize=10)
+    # Ajout de titres et d'étiquettes
+    plt.xlabel('Month-year', fontsize=14)
+    plt.ylabel('Average price [EUR/MWh]', fontsize=14)
+    # Ajustement automatique des espacements pour éviter la superposition
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "Average_electricity_price.png"), dpi=400)
+    
+def heatmap_plot(price_df, output_dir_plot):
+    df2 = price_df.copy()
+    df2['Time'] = pd.to_datetime(df2['Time'], format='%d/%m/%Y %H:%M')
+    df2['Hour'] = df2['Time'].dt.hour
+    df2['Day_of_Year'] = df2['Time'].dt.dayofyear
+    df2['Year'] = df2['Time'].dt.year
+    # Calcul des prix moyens par heure et jour de l'année (agrégation par heure et jour)
+    heatmap_data = df2.groupby(['Day_of_Year', 'Hour'])['Day-ahead Price [EUR/MWh]'].mean().unstack()
+    # Configuration de style pour un visuel professionnel
+    sns.set(style="whitegrid")
+    # Création de la heatmap
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(heatmap_data, cmap='coolwarm', cbar_kws={'label': 'Average price [EUR/MWh]'})
+    # Ajout de titres et d'étiquettes
+    plt.xlabel('Hour of day', fontsize=14)
+    plt.ylabel('Day of year', fontsize=14)
+    # Affichage de la figure
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "Heatmap_electricity_price.png"), dpi=400)
+    
+    return None 
+
+def heatmap_plot_2(price_df, output_dir_plot):
+    df2 = price_df.copy()
+    df2['Time'] = pd.to_datetime(df2['Time'], format='%d/%m/%Y %H:%M')
+    df2['Hour'] = df2['Time'].dt.hour
+    
+    # Création d'une colonne Année-Mois pour l'axe Y
+    df2['Year_Month'] = df2['Time'].dt.strftime('%Y-%m')
+    
+    # Calcul des prix moyens par heure et par Année-Mois (agrégation par heure et mois)
+    heatmap_data = df2.groupby(['Year_Month', 'Hour'])['Day-ahead Price [EUR/MWh]'].mean().unstack()
+    
+    # Configuration de style pour un visuel professionnel
+    sns.set(style="whitegrid")
+    
+    # Création de la heatmap
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(heatmap_data, cmap='coolwarm', cbar_kws={'label': 'Average price [EUR/MWh]'})
+    
+    # Ajout de titres et d'étiquettes
+    plt.xlabel('Hour of day', fontsize=14)
+    plt.ylabel('Year-Month', fontsize=14)
+    
+    # Amélioration de la mise en page
+    plt.tight_layout()
+    
+    # Sauvegarde du graphique dans un fichier PNG avec haute résolution
+    plt.savefig(os.path.join(output_dir_plot, "Heatmap_electricity_price_2.png"), dpi=400)
+    
+    return None
+
+def heatmap_month_plot(price_df, output_dir_plot):
+    df3 = price_df.copy()
+    df3['Time'] = pd.to_datetime(df3['Time'], format='%d/%m/%Y %H:%M')
+    # Extraction des informations sur les heures, jours et mois
+    df3['Hour'] = df3['Time'].dt.hour
+    df3['Day'] = df3['Time'].dt.day
+    df3['Month'] = df3['Time'].dt.month
+    df3['Month_Name'] = df3['Time'].dt.strftime('%B')  # Nom du mois pour les labels
+    # Initialisation de la figure 4x3 pour les sous-graphes (subplots)
+    fig, axes = plt.subplots(4, 3, figsize=(16, 12))
+    # Palette de couleurs pour la heatmap
+    cmap = 'coolwarm'
+    # Boucle sur chaque mois de l'année
+    for i, month in enumerate(range(1, 13)):
+        # Filtrage des données pour le mois courant
+        monthly_data = df3[df3['Month'] == month]
+        
+        # Calcul des prix moyens par jour et par heure pour le mois courant
+        heatmap_data = monthly_data.groupby(['Day', 'Hour'])['Day-ahead Price [EUR/MWh]'].mean().unstack()
+        
+        # Sélection de l'axe correct dans la grille 4x3
+        ax = axes[i // 3, i % 3]
+        
+        # Tracé de la heatmap pour le mois courant
+        sns.heatmap(heatmap_data, ax=ax, cmap=cmap, cbar_kws={'label': 'Price [EUR/MWh]'}, cbar=(i == 11))  # Cbar uniquement pour le dernier subplot
+        
+        # Ajout du titre pour chaque mois
+        ax.set_title(df3['Month_Name'].unique()[i], fontsize=14)
+        
+        # Étiquettes des axes
+        ax.set_xlabel('Hour', fontsize=10)
+        ax.set_ylabel('Day', fontsize=10)
+    # Ajustement des espaces entre les subplots
+    
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.savefig(os.path.join(output_dir_plot, "Heatmap_electricity_price_monthly.png"), dpi=400)
+    
+def heatmap_month_plot_2(price_df, output_dir_plot ):
+    df4=price_df.copy()
+    df4['Time'] = pd.to_datetime(df4['Time'], format='%d/%m/%Y %H:%M')
+
+    # Extraction des informations sur les heures, jours et mois
+    df4['Hour'] = df4['Time'].dt.hour
+    df4['Day'] = df4['Time'].dt.day
+    df4['Month'] = df4['Time'].dt.month
+    df4['Month_Name'] = df4['Time'].dt.strftime('%B')  # Nom du mois pour les labels
+
+    # Initialisation de la figure 4x3 avec un subplot supplémentaire pour le cbar
+    fig = plt.figure(figsize=(16, 12))
+    #fig.suptitle('Carte thermique des prix horaires par mois (Bidding Zone Allemagne)', fontsize=18)
+
+    # Utilisation de Gridspec pour une gestion plus fine des sous-graphes
+    gs = gridspec.GridSpec(4, 4, width_ratios=[1, 1, 1, 0.05], wspace=0.3, hspace=0.4)
+
+    # Palette de couleurs pour la heatmap
+    cmap = 'coolwarm'
+
+    # Initialisation d'une variable pour stocker l'objet colormap (nécessaire pour le cbar global)
+    vmin = df4['Day-ahead Price [EUR/MWh]'].min()
+    vmax = df4['Day-ahead Price [EUR/MWh]'].max()
+
+    # Boucle sur chaque mois de l'année
+    for i, month in enumerate(range(1, 13)):
+        # Filtrage des données pour le mois courant
+        monthly_data = df4[df4['Month'] == month]
+        
+        # Calcul des prix moyens par jour et par heure pour le mois courant
+        heatmap_data = monthly_data.groupby(['Day', 'Hour'])['Day-ahead Price [EUR/MWh]'].mean().unstack()
+        
+        # Sélection de l'axe correct dans la grille 4x3 (la 4ème colonne est réservée au cbar)
+        ax = plt.subplot(gs[i // 3, i % 3])
+        
+        # Tracé de la heatmap pour le mois courant sans cbar
+        sns.heatmap(heatmap_data, ax=ax, cmap=cmap, cbar=False, vmin=vmin, vmax=vmax)
+        
+        # Ajout du titre pour chaque mois
+        ax.set_title(df4['Month_Name'].unique()[i], fontsize=14)
+        
+        # Étiquettes des axes
+        ax.set_xlabel('Heure de la journée', fontsize=10)
+        ax.set_ylabel('Jour du mois', fontsize=10)
+
+    # Création d'un seul cbar à droite sans recréer une nouvelle heatmap
+    cbar_ax = plt.subplot(gs[:, 3])  # Utilisation de toute la dernière colonne pour le cbar
+    norm = plt.Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])  # Array vide car la heatmap est déjà tracée
+    cbar = plt.colorbar(sm, cax=cbar_ax)
+    cbar.set_label('Prix [EUR/MWh]', fontsize=12)
+
+    # Ajustement de l'espacement de la figure
+    plt.tight_layout(rect=[0, 0, 0.95, 0.95])
+    plt.savefig(os.path.join(output_dir_plot, "Heatmap_electricity_price_monthly_2.png"), dpi=400)
+    
+    
+def heatmap_month_plot_3(price_df, output_dir_plot):
+    df= price_df.copy()
+    df['Time'] = pd.to_datetime(df['Time'], format='%d/%m/%Y %H:%M')
+
+    # Extraction des informations sur les heures, jours et mois
+    df['Hour'] = df['Time'].dt.hour
+    df['Day'] = df['Time'].dt.day
+    df['Month'] = df['Time'].dt.month
+    df['Month_Name'] = df['Time'].dt.strftime('%B')  # Nom du mois pour les labels
+
+    # Initialisation de la figure 4x3 avec un subplot supplémentaire pour le cbar
+    fig = plt.figure(figsize=(16, 12))
+    fig.suptitle('Carte thermique des prix horaires par mois (Bidding Zone Allemagne)', fontsize=18)
+
+    # Utilisation de Gridspec pour une gestion plus fine des sous-graphes
+    gs = gridspec.GridSpec(4, 4, width_ratios=[1, 1, 1, 0.05], wspace=0.3, hspace=0.4)
+
+    # Palette de couleurs pour la heatmap
+    cmap = 'coolwarm'
+
+    # Variables pour les limites du colorbar
+    vmin = df['Day-ahead Price [EUR/MWh]'].min()
+    vmax = df['Day-ahead Price [EUR/MWh]'].max()
+
+    # Boucle sur chaque mois de l'année
+    for i, month in enumerate(range(1, 13)):
+        # Filtrage des données pour le mois courant
+        monthly_data = df[df['Month'] == month]
+        
+        # Calcul des prix moyens par jour et par heure pour le mois courant
+        heatmap_data = monthly_data.groupby(['Day', 'Hour'])['Day-ahead Price [EUR/MWh]'].mean().unstack()
+        
+        # Sélection de l'axe correct dans la grille 4x3 (la 4ème colonne est réservée au cbar)
+        ax = plt.subplot(gs[i // 3, i % 3])
+        
+        # Tracé de la heatmap pour le mois courant sans cbar
+        sns.heatmap(heatmap_data, ax=ax, cmap=cmap, cbar=False, vmin=vmin, vmax=vmax)
+        
+        # Ajout du titre pour chaque mois
+        ax.set_title(df['Month_Name'].unique()[i], fontsize=14)
+        
+        # Ajouter les étiquettes des axes uniquement pour les sous-graphes extrêmes
+        if i % 3 == 0:  # Si on est dans la colonne de gauche (1ère colonne), afficher l'étiquette Y
+            ax.set_ylabel('Jour du mois', fontsize=10)
+        else:
+            ax.set_ylabel('')  # Supprimer l'étiquette Y
+        
+        if i // 3 == 3:  # Si on est dans la dernière ligne (4ème ligne), afficher l'étiquette X
+            ax.set_xlabel('Heure de la journée', fontsize=10)
+        else:
+            ax.set_xlabel('')  # Supprimer l'étiquette X
+
+    # Création d'un seul cbar à droite pour toute la figure
+    cbar_ax = plt.subplot(gs[:, 3])  # Utilisation de toute la dernière colonne pour le cbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax))
+    cbar = plt.colorbar(sm, cax=cbar_ax)
+    cbar.set_label('Prix [EUR/MWh]', fontsize=12)
+
+    # Ajustement de l'espacement de la figure
+    plt.tight_layout(rect=[0, 0, 0.95, 0.95])
+    plt.savefig(os.path.join(output_dir_plot, "Heatmap_electricity_price_monthly_3.png"), dpi=400)
+    return None 
+
+
+def volatility_heatmap(price_df, output_dir_plot):
+    
+    df = price_df.copy()
+    
+    # Conversion de la colonne 'Time' en format datetime
+    df['Time'] = pd.to_datetime(df['Time'], format='%d/%m/%Y %H:%M')
+    
+    # Extraction des heures, semaines et mois
+    df['Hour'] = df['Time'].dt.hour
+    df['Week'] = df['Time'].dt.strftime('%Y-%U')  # Année et numéro de semaine
+    
+    # Calcul de l'écart-type (volatilité) des prix par semaine et par heure
+    volatility_data = df.groupby(['Week', 'Hour'])['Day-ahead Price [EUR/MWh]'].std().unstack()
+    
+    # Configuration de style pour un visuel professionnel
+    sns.set(style="whitegrid")
+    
+    # Création de la heatmap avec normalisation de l'échelle de couleur
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(volatility_data, cmap='coolwarm', 
+                cbar_kws={'label': 'Volatility (Price Std. Dev.) [EUR/MWh]'}, 
+                vmin=0, vmax=volatility_data.max().max())  # Limites de couleur ajustées
+    
+    # Ajout de titres et d'étiquettes
+    #plt.title('Heatmap de la volatilité des prix par semaine et heure', fontsize=16)
+    plt.xlabel('Hour', fontsize=14)
+    plt.ylabel('Week', fontsize=14)
+    
+    # Amélioration de la mise en page
+    plt.tight_layout()
+    
+    # Sauvegarde de la figure
+    plt.savefig(os.path.join(output_dir_plot, "Heatmap_price_volatility_weekly.png"), dpi=400)
+
+    return None    
+
+
+def rolling_volatility_plot(price_df, output_dir_plot):
+    df = price_df.copy()
+    
+    # Conversion de la colonne 'Time' en format datetime
+    df['Time'] = pd.to_datetime(df['Time'], format='%d/%m/%Y %H:%M')
+    
+    # Calcul de la volatilité glissante (écart-type sur une fenêtre de 24 heures)
+    df.set_index('Time', inplace=True)
+    df['Rolling Volatility (24H)'] = df['Day-ahead Price [EUR/MWh]'].rolling(window=24).std()
+    
+    # Création du graphique en ligne
+    plt.figure(figsize=(10, 6))
+    plt.plot(df.index, df['Rolling Volatility (24H)'], color='blue', linewidth=1.5)
+    
+    # Ajout de titres et d'étiquettes
+    #plt.title('Volatilité glissante des prix horaires (24 heures)', fontsize=16)
+    plt.xlabel('Date', fontsize=14)
+    plt.ylabel('Volatility (Std) [EUR/MWh]', fontsize=14)
+    
+    # Amélioration de la mise en page
+    plt.tight_layout()
+    
+    # Sauvegarde du graphique
+    plt.savefig(os.path.join(output_dir_plot, "Rolling_Volatility_24H.png"), dpi=400)
+    return None
+
+
+def boxplot_prices(price_df, output_dir_plot):
+    df = price_df.copy()
+    
+    # Conversion de la colonne 'Time' en format datetime
+    df['Time'] = pd.to_datetime(df['Time'], format='%d/%m/%Y %H:%M')
+    
+    # Extraction des périodes pertinentes
+    df['Day'] = df['Time'].dt.date  # Extraction du jour complet
+    df['Week'] = df['Time'].dt.strftime('%Y-%U')  # Année et numéro de semaine
+    df['Month'] = df['Time'].dt.strftime('%Y-%m')  # Année et mois
+
+    # Configuration de style pour un visuel professionnel
+    sns.set(style="whitegrid")
+
+    # 1. Boxplot par jour
+    plt.figure(figsize=(15, 6))
+    sns.boxplot(x='Day', y='Day-ahead Price [EUR/MWh]', data=df)
+    plt.xticks(rotation=90)  # Rotation des étiquettes pour une meilleure lisibilité
+    #plt.title('Boxplot des prix par jour', fontsize=16)
+    plt.xlabel('Day', fontsize=14)
+    plt.ylabel('Price [EUR/MWh]', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "Boxplot_Price_Per_Day.png"), dpi=400)
+
+
+    # 2. Boxplot par semaine
+    plt.figure(figsize=(12, 6))
+    sns.boxplot(x='Week', y='Day-ahead Price [EUR/MWh]', data=df)
+    plt.xticks(rotation=90)  # Rotation des étiquettes pour une meilleure lisibilité
+    #plt.title('Boxplot des prix par semaine', fontsize=16)
+    plt.xlabel('Week', fontsize=14)
+    plt.ylabel('Price [EUR/MWh]', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "Boxplot_Price_Par_Week.png"), dpi=400)
+    
+
+    # 3. Boxplot par mois
+    plt.figure(figsize=(12, 6))
+    sns.boxplot(x='Month', y='Day-ahead Price [EUR/MWh]', data=df)
+    plt.xticks(rotation=90)  # Rotation des étiquettes pour une meilleure lisibilité
+    #plt.title('Boxplot des prix par mois', fontsize=16)
+    plt.xlabel('Month', fontsize=14)
+    plt.ylabel('Price [EUR/MWh]', fontsize=14)
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "Boxplot_Price_Per_Mont.png"), dpi=400)
+    
+
+    return None
 
 
 

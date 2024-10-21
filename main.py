@@ -1,4 +1,5 @@
 
+# Import helper function 
 from core import(readStorageDispatchScenario, 
                  readLoadPrice, 
                  runStorageDispatchCases, 
@@ -9,10 +10,11 @@ from core import(readStorageDispatchScenario,
 from results_analysis import (plotStorageDispatchCases,
                               plotStorageDispatchSensitivitydelta,
                               plotStorageDispatchSensitivityShare,
-                              plotStorageConfiguration
+                              plotStorageConfiguration,
+                              plotdataAnalysis
                               )
 
-import matplotlib.pyplot as plt
+
 
 # read storage dispatch scenarios
 SCENARIO_LIST = list(range(1, 30))
@@ -21,6 +23,9 @@ SCENARIOS, params = readStorageDispatchScenario(SCENARIO_LIST)
 #Read price load, and base_tariff
 DF_LOAD, DF_PRICE = readLoadPrice()
 base_tariff = float(params['scenario_1']['global']['network']['base_tariff'])
+
+#Data analysis 
+plotdataAnalysis(DF_LOAD, DF_PRICE)
 
 ''' 
 #Step1: compare storage dispatch for each tarifs design 
@@ -52,12 +57,13 @@ STORAGE_RESULT = runStorageDispatchSensitivityShare(params, scenario_cases, DF_P
 plotStorageDispatchSensitivityShare(params, STORAGE_RESULT)
 '''
 
+''' 
 print("STEP 4: EX-ANTE TARIFF VS EX-POST TARIFF")
 scenario_cases = SCENARIOS[25:29]
 STORAGE_RESULT = runStorageConfiguration(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD) 
 plotStorageConfiguration(scenario_cases, STORAGE_RESULT, params)
 
-pass 
+'''
 
 
 

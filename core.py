@@ -33,7 +33,7 @@ def readLoadPrice():
     
     return load_df, price_df
     
-
+        
 
 
 def runStorageDispatchCases(params, scenario_cases, SHADOW_PRICE, base_tariff, DF_LOAD):
