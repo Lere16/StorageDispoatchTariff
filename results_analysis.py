@@ -19,6 +19,7 @@ import seaborn as sns
 import statsmodels.api as sm
 import plotly.graph_objects as go
 #from matplotlib.ticker import ScalarFormatter
+from matplotlib.ticker import FuncFormatter
 
 
 
@@ -1063,7 +1064,117 @@ def plot_revenue_comparison_ok(STORAGE_RESULT, params, output_dir_plot):
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir_plot, "revenue_comparison.jpg"), dpi=600)
 
+
+
+
+
 def plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot):
+    alpha = 0.85
+    # Get all unique shapes (tariff designs)
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#ff7f0e', '#1f77b4']  # Color for energy stored and energy discharged
+    hatches = ['///', '\\\\']  # Hatching patterns
+    bar_width = 0.3  # Reduced bar width for less clutter
+
+    fig, ax = plt.subplots(figsize=(9, 6))  # Adjusted figure size for readability
+    
+    for spine in ax.spines.values():
+        spine.set_edgecolor('black')
+        spine.set_linewidth(1.5)
+
+    shape_idx = 0
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
+
+    # Variables to store the average energy stored and discharged for each tariff design
+    avg_energy_stored_per_shape = []
+    avg_energy_discharged_per_shape = []
+
+    for shape in shapes:
+        total_energy_stored = []
+        total_energy_discharged = []
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate total energy stored (charging) and energy discharged (discharging)
+                energy_stored = abs(df_delta[df_delta['dispatch']<0]['dispatch'].sum())  # Positive dispatch = charging
+                energy_discharged = abs(df_delta[df_delta['dispatch']>0]['dispatch'].sum())  # Negative dispatch = discharging
+                
+                # Store the results
+                total_energy_stored.append(energy_stored)
+                total_energy_discharged.append(energy_discharged)
+
+        # Convert lists to numpy arrays for easy bar plotting
+        total_energy_stored = np.array(total_energy_stored)
+        total_energy_discharged = np.array(total_energy_discharged)
+
+        # Indices for the bars
+        index = np.arange(len(total_energy_stored))
+
+        # Offset for the group of bars, with spacing between scenarios
+        offset = shape_idx * bar_width * 4  # Extra spacing between groups of scenarios
+
+        # Plot bars for energy stored (charging)
+        bars1_solid = ax.bar(index + offset, total_energy_stored, bar_width, color='none', edgecolor='black',
+                       label='Energy Stored' if shape_idx == 0 else "", alpha=alpha)
+
+        bars1_hatch = ax.bar(index + offset, total_energy_stored, bar_width, color='none', edgecolor=colors[0],
+                             hatch=hatches[0], linewidth=0, alpha=1)
+
+        # Plot bars for energy discharged (discharging)
+        bars2_solid = ax.bar(index + offset + bar_width, total_energy_discharged, bar_width, color='none', edgecolor='black',
+                       label='Energy Discharged' if shape_idx == 0 else "", alpha=alpha)
+
+        bars2_hatch = ax.bar(index + offset + bar_width, total_energy_discharged, bar_width, color='none', edgecolor=colors[1],
+                             hatch=hatches[1], linewidth=0, alpha=1)
+
+        # Store average energy stored and discharged for the current tariff design
+        avg_energy_stored_per_shape.append(np.mean(total_energy_stored))
+        avg_energy_discharged_per_shape.append(np.mean(total_energy_discharged))
+
+        # Add shape labels
+        shapes_labels.extend([f'{shape}'])
+        num_scenarios_per_shape.append(len(total_energy_stored))
+        shape_idx += 1
+
+    # Adjust tick positions and labels
+    total_bars = sum(num_scenarios_per_shape)
+    ticks_positions = np.arange(total_bars) * bar_width * 4 + bar_width / 2  # Add extra space between scenarios
+    ax.set_xticks(ticks_positions)
+    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)  # Increase tick label size
+
+    ax.set_xlabel('Tariff Designs', fontsize=12)  # Increase x-axis label size
+    ax.set_ylabel('Total Energy (MWh)', fontsize=12)  # Increase y-axis label size
+
+    ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+    # Add trend lines
+    # Convert shapes_labels to the corresponding x positions for the trend line (midpoints of the groups)
+    trend_line_x_position_1 = np.arange(len(shapes)) * bar_width * 4 
+    trend_line_x_position_2 = np.arange(len(shapes)) * bar_width * 4 + bar_width
+    
+    
+
+    # Plot trend line for energy stored
+    ax.plot(trend_line_x_position_1, avg_energy_stored_per_shape, marker='o', linestyle='-', color=colors[0], 
+            label='Trend: Energy Stored')
+
+    # Plot trend line for energy discharged
+    ax.plot(trend_line_x_position_2, avg_energy_discharged_per_shape, marker='o', linestyle='-', color=colors[1], 
+            label='Trend: Energy Discharged')
+
+    # Move the legend to the bottom, outside the plot area
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=12)
+    ax.grid(False)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to leave space for the legend
+    plt.savefig(os.path.join(output_dir_plot, "energy_comparison_with_trend.png"), dpi=600)
+    plt.close(fig)
+
+
+
+    
+    
+def plot_energy_comparison_OK(STORAGE_RESULT, params, output_dir_plot):
     alpha = 0.85
     # Get all unique shapes (tariff designs)
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
