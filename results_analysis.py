@@ -18,8 +18,8 @@ import plotly.figure_factory as ff
 import seaborn as sns
 import statsmodels.api as sm
 import plotly.graph_objects as go
-from matplotlib.ticker import ScalarFormatter
-import matplotlib.gridspec as gridspec
+#from matplotlib.ticker import ScalarFormatter
+
 
 
 
@@ -194,6 +194,8 @@ def heatmap_month_plot(price_df, output_dir_plot):
     plt.savefig(os.path.join(output_dir_plot, "Heatmap_electricity_price_monthly.png"), dpi=400)
     
 def heatmap_month_plot_2(price_df, output_dir_plot ):
+    
+    import matplotlib.gridspec as gridspec
     df4=price_df.copy()
     df4['Time'] = pd.to_datetime(df4['Time'], format='%d/%m/%Y %H:%M')
 
@@ -252,6 +254,7 @@ def heatmap_month_plot_2(price_df, output_dir_plot ):
     
     
 def heatmap_month_plot_3(price_df, output_dir_plot):
+    import matplotlib.gridspec as gridspec
     df= price_df.copy()
     df['Time'] = pd.to_datetime(df['Time'], format='%d/%m/%Y %H:%M')
 
@@ -452,7 +455,7 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
         fig_storagedispatch.savefig(os.path.join(output_dir_plot, f'storage_dispatch_{scenario}.png'), dpi=350)
     
     
-        #for all scenarios 
+    #for all scenarios 
     num_scenarios = len(scenario_cases)
     labels_storage = ['charge', 'discharge', 'tariff_level']
     colors_storage = ['hotpink', 'darkcyan', 'black']
@@ -469,8 +472,10 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
         df = df.set_index('hour')
 
         ax = axes[i] if num_scenarios > 1 else axes  
-        hourlyStorageDispatch_2(labels_storage, colors_storage, df_area=df[['Pc', 'Pd']], df_line=df[['tariff']], sto_level=True, legend=False, ax1=ax)
-
+        if scenarios_labels[scenario]== params[scenario_cases[0]]['global']['tariff']['shape']:
+            hourlyStorageDispatch_2(labels_storage, colors_storage, df_area=df[['Pc', 'Pd']], sto_level=False, legend=False, ax1=ax)
+        else:
+            hourlyStorageDispatch_2(labels_storage, colors_storage, df_area=df[['Pc', 'Pd']], df_line=df[['tariff']], sto_level=True, legend=False, ax1=ax)
         ax.set_title(f'{scenarios_labels[scenario]}')
     
 
@@ -605,11 +610,10 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     fig_dispatch_vol=plotDispatchVolume(pd.DataFrame(selected_df))
     fig_dispatch_vol.write_html(os.path.join(output_dir_plot, f'storage_dispatch_volume.html'))
         
-        # compare revenue for all scenarios:
-        
+    # compare revenue for all scenarios:    
     plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot)
-    plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir_plot)
-    
+    plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir_plot) 
+    plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot)   
     return None 
 
 
@@ -768,7 +772,7 @@ def hourlyStorageDispatch_2(labels, colors, sto_level=False, df_area=None, df_li
     area1 = ax1.stackplot(x, y_pos, labels=labels, colors=colors, step='mid')
     area2 = ax1.stackplot(x, y_neg, colors=colors, step='mid')
     if sto_level:
-        line1 = ax2.plot(df_line, color='#434566', linestyle='-.', label='tariff level')
+        line1 = ax2.plot(df_line, color='#434566', linestyle='-', label='tariff level')
     
     if legend:
         figs = area1 + area2
@@ -973,7 +977,7 @@ def plotDispatchVolume(df):
     return fig
 
 
-def plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
+def plot_revenue_comparison_ok(STORAGE_RESULT, params, output_dir_plot):
     alpha=0.85
     # Get all unique shapes
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
@@ -1058,7 +1062,355 @@ def plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir_plot, "revenue_comparison.jpg"), dpi=600)
+
+def plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot):
+    alpha = 0.85
+    # Get all unique shapes (tariff designs)
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#ff7f0e', '#1f77b4']  # Color for energy stored and energy discharged
+    hatches = ['/', '\\']  # Hatching patterns
+    bar_width = 0.15  # Reduced bar width for less clutter
+
+    fig, ax = plt.subplots(figsize=(12, 8))  # Increased figure size for better readability
+
+    shape_idx = 0
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
+
+    # Variables to store the average energy stored and discharged for each tariff design
+    avg_energy_stored_per_shape = []
+    avg_energy_discharged_per_shape = []
+
+    for shape in shapes:
+        total_energy_stored = []
+        total_energy_discharged = []
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate total energy stored (charging) and energy discharged (discharging)
+                energy_stored = df_delta[df_delta['dispatch'] < 0]['dispatch'].sum()  # Positive dispatch = charging
+                energy_discharged = abs(df_delta[df_delta['dispatch'] > 0]['dispatch'].sum())  # Negative dispatch = discharging
+                
+                # Store the results
+                total_energy_stored.append(energy_stored)
+                total_energy_discharged.append(energy_discharged)
+
+        # Convert lists to numpy arrays for easy bar plotting
+        total_energy_stored = np.array(total_energy_stored)
+        total_energy_discharged = np.array(total_energy_discharged)
+
+        # Indices for the bars
+        index = np.arange(len(total_energy_stored))
+
+        # Offset for the group of bars, with spacing between scenarios
+        offset = shape_idx * bar_width * 4  # Extra spacing between groups of scenarios
+
+        # Plot bars for energy stored (charging)
+        bars1 = ax.bar(index + offset, total_energy_stored, bar_width, color=colors[0], edgecolor='black',
+                       label='Energy Stored' if shape_idx == 0 else "", hatch=hatches[0], alpha=alpha)
+
+        # Plot bars for energy discharged (discharging)
+        bars2 = ax.bar(index + offset + bar_width, total_energy_discharged, bar_width, color=colors[1], edgecolor='black',
+                       label='Energy Discharged' if shape_idx == 0 else "", hatch=hatches[1], alpha=alpha)
+
+        # Store average energy stored and discharged for the current tariff design
+        avg_energy_stored_per_shape.append(np.mean(total_energy_stored))
+        avg_energy_discharged_per_shape.append(np.mean(total_energy_discharged))
+
+        # Add shape labels
+        shapes_labels.extend([f'{shape}'])
+        num_scenarios_per_shape.append(len(total_energy_stored))
+        shape_idx += 1
+
+    # Adjust tick positions and labels
+    total_bars = sum(num_scenarios_per_shape)
+    ticks_positions = np.arange(total_bars) * bar_width * 4 + bar_width / 2  # Add extra space between scenarios
+    ax.set_xticks(ticks_positions)
+    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)  # Increase tick label size
+
+    ax.set_xlabel('Tariff Designs', fontsize=12)  # Increase x-axis label size
+    ax.set_ylabel('Total Energy (MWh)', fontsize=12)  # Increase y-axis label size
     
+
+    # Add trend lines
+    # Convert shapes_labels to the corresponding x positions for the trend line (midpoints of the groups)
+    trend_line_x_positions = np.arange(len(shapes)) * bar_width * 4 + bar_width
+
+    # Plot trend line for energy stored
+    ax.plot(trend_line_x_positions, avg_energy_stored_per_shape, marker='o', linestyle='-', color=colors[0], 
+            label='Trend: Energy Stored')
+
+    # Plot trend line for energy discharged
+    ax.plot(trend_line_x_positions, avg_energy_discharged_per_shape, marker='o', linestyle='-', color=colors[1], 
+            label='Trend: Energy Discharged')
+
+    # Move the legend to the bottom, outside the plot area
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=12)
+    ax.grid(False)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to leave space for the legend
+    plt.savefig(os.path.join(output_dir_plot, "energy_comparison_with_trend.jpg"), dpi=300)
+    
+    
+    
+def plot_energy_comparison_ok(STORAGE_RESULT, params, output_dir_plot):
+    alpha = 0.85
+    # Get all unique shapes (tariff designs)
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#ff7f0e', '#1f77b4']  # Color for energy stored and energy discharged
+    hatches = ['/', '\\']  # Hatching patterns
+    bar_width = 0.15  # Reduced bar width for less clutter
+
+    fig, ax = plt.subplots(figsize=(12, 8))  # Increased figure size for better readability
+
+    shape_idx = 0
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
+
+    for shape in shapes:
+        total_energy_stored = []
+        total_energy_discharged = []
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate total energy stored (charging) and energy discharged (discharging)
+                energy_stored = df_delta[df_delta['dispatch'] < 0]['dispatch'].sum()  # Positive dispatch = charging
+                energy_discharged = abs(df_delta[df_delta['dispatch'] > 0]['dispatch'].sum())  # Negative dispatch = discharging
+                
+                # Store the results
+                total_energy_stored.append(energy_stored)
+                total_energy_discharged.append(energy_discharged)
+
+        # Convert lists to numpy arrays for easy bar plotting
+        total_energy_stored = np.array(total_energy_stored)
+        total_energy_discharged = np.array(total_energy_discharged)
+
+        # Indices for the bars
+        index = np.arange(len(total_energy_stored))
+
+        # Offset for the group of bars, with spacing between scenarios
+        offset = shape_idx * bar_width * 4  # Extra spacing between groups of scenarios
+
+        # Plot bars for energy stored (charging)
+        bars1 = ax.bar(index + offset, total_energy_stored, bar_width, color=colors[0], edgecolor='black',
+                       label='Energy Stored' if shape_idx == 0 else "", hatch=hatches[0], alpha=alpha)
+
+        # Plot bars for energy discharged (discharging)
+        bars2 = ax.bar(index + offset + bar_width, total_energy_discharged, bar_width, color=colors[1], edgecolor='black',
+                       label='Energy Discharged' if shape_idx == 0 else "", hatch=hatches[1], alpha=alpha)
+
+        # Add shape labels
+        shapes_labels.extend([f'{shape}'])
+        num_scenarios_per_shape.append(len(total_energy_stored))
+        shape_idx += 1
+
+    # Adjust tick positions and labels
+    total_bars = sum(num_scenarios_per_shape)
+    ticks_positions = np.arange(total_bars) * bar_width * 4 + bar_width / 2  # Add extra space between scenarios
+    ax.set_xticks(ticks_positions)
+    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)  # Increase tick label size
+
+    ax.set_xlabel('Tariff Designs', fontsize=12)  # Increase x-axis label size
+    ax.set_ylabel('Total Energy (MWh)', fontsize=12)  # Increase y-axis label size
+    ax.set_title('Total Energy Stored vs. Discharged for Different Tariff Designs', fontsize=14)
+
+    # Move the legend to the bottom, outside the plot area
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=12)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to leave space for the legend
+    plt.savefig(os.path.join(output_dir_plot, "energy_comparison.jpg"), dpi=300)
+    
+    
+    
+def plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
+    alpha = 0.85
+    # Get all unique shapes
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#ff7f0e', '#1f77b4', 'grey']  # Colors for Tariff Revenue, Market Revenue, and Std Dev of Total Revenue
+    bar_width = 0.2  # Adjusted for smaller bars
+
+    fig, ax = plt.subplots(figsize=(12, 8))  # Increased figure size for better readability
+
+    shape_idx = 0
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
+
+    for shape in shapes:
+        average_market_revenues = []
+        average_tariff_revenues = []
+        average_total_revenues = []
+        std_total_revenues = []
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate revenues
+                df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
+                df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
+
+                # Calculate annual revenues
+                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum()
+                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum()
+                total_revenue = annual_market_revenue + annual_tariff_revenue
+
+                # Store values
+                average_market_revenues.append(annual_market_revenue.mean())
+                average_tariff_revenues.append(annual_tariff_revenue.mean())
+                average_total_revenues.append(total_revenue.mean())
+                std_total_revenues.append(total_revenue.std())
+
+        # Convert lists to numpy arrays
+        average_market_revenues = np.array(average_market_revenues)
+        average_tariff_revenues = np.array(average_tariff_revenues)
+        average_total_revenues = np.array(average_total_revenues)
+        std_total_revenues = np.array(std_total_revenues)
+
+        # Indices for the bars
+        index = np.arange(len(average_market_revenues))
+        gap = 0.1  # Gap between groups
+        offset = shape_idx * (bar_width * 3 + gap)  # Added gap between groups
+
+        # Plot stacked bars for tariff and market revenues with hatching
+        bars1 = ax.bar(index + offset, average_tariff_revenues, bar_width, color=colors[0], edgecolor='black', 
+                       label='Tariff-based revenue' if shape_idx == 0 else "", alpha=alpha, hatch='/')
+        bars2 = ax.bar(index + offset, average_market_revenues, bar_width, bottom=average_tariff_revenues, color=colors[1], 
+                       edgecolor='black', label='Energy market revenue' if shape_idx == 0 else "", alpha=alpha, hatch='\\')
+
+        # Plot bars for standard deviation of total revenue with hatching
+        bars3 = ax.bar(index + offset + bar_width, std_total_revenues, bar_width, color=colors[2], edgecolor='black', 
+                       label='Std Dev of Total Revenue' if shape_idx == 0 else "", alpha=alpha, hatch='.')
+
+        # Add annotations for revenues
+        for bar in bars1:
+            height = bar.get_height()
+            ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+        for bar1, bar2 in zip(bars1, bars2):
+            height1 = bar1.get_height()
+            height2 = bar2.get_height()
+            total_height = height1 + height2
+            ax.annotate(f'{height2:.2f}', xy=(bar2.get_x() + bar2.get_width() / 2, total_height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+        for bar in bars3:
+            height = bar.get_height()
+            ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+
+        # Add shape labels
+        shapes_labels.extend([f'{shape}'])
+        num_scenarios_per_shape.append(len(average_market_revenues))
+        shape_idx += 1
+
+    # Adjust tick positions and labels
+    total_bars = sum(num_scenarios_per_shape)
+    ticks_positions = np.arange(total_bars) * (bar_width * 3 + gap) + bar_width / 2
+    ax.set_xticks(ticks_positions)
+    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)  # Increase tick label size
+
+    ax.set_xlabel('Shapes', fontsize=12)  # Increase x-axis label size
+    ax.set_ylabel('Revenue (EUR/y)', fontsize=12)  # Increase y-axis label size
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fontsize=10)  # Increase legend size
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "revenue_comparison.jpg"), dpi=600)
+
+
+def plot_revenue_comparison_ok3(STORAGE_RESULT, params, output_dir_plot):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import os
+
+    alpha = 0.85
+    hatch_patterns = ['/', '\\', 'x']  # Hatching patterns for different bar categories
+    # Get all unique shapes
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#ff7f0e', '#1f77b4', 'grey']  # Colors for Tariff Revenue, Market Revenue, and Std Dev of Total Revenue
+    bar_width = 0.3
+
+    fig, ax = plt.subplots(figsize=(9, 7))
+
+    shape_idx = 0
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
+
+    for shape in shapes:
+        average_market_revenues = []
+        average_tariff_revenues = []
+        average_total_revenues = []
+        std_total_revenues = []
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate revenues
+                df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
+                df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
+
+                # Calculate annual revenues
+                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum()
+                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum()
+                total_revenue = annual_market_revenue + annual_tariff_revenue
+
+                # Store values
+                average_market_revenues.append(annual_market_revenue.mean())
+                average_tariff_revenues.append(annual_tariff_revenue.mean())
+                average_total_revenues.append(total_revenue.mean())
+                std_total_revenues.append(total_revenue.std())
+
+        # Convert lists to numpy arrays
+        average_market_revenues = np.array(average_market_revenues)
+        average_tariff_revenues = np.array(average_tariff_revenues)
+        average_total_revenues = np.array(average_total_revenues)
+        std_total_revenues = np.array(std_total_revenues)
+
+        # Indices for the bars
+        index = np.arange(len(average_market_revenues))
+
+        # Offset for the group of bars
+        offset = shape_idx * bar_width * 3  # Increased gap between groups
+
+        # Plot stacked bars for tariff and market revenues
+        bars1 = ax.bar(index + offset, average_tariff_revenues, bar_width, color=colors[0], edgecolor='black', 
+                       hatch=hatch_patterns[0], label='Tariff Revenue' if shape_idx == 0 else "", alpha=alpha)
+        bars2 = ax.bar(index + offset, average_market_revenues, bar_width, bottom=average_tariff_revenues, 
+                       color=colors[1], edgecolor='black', hatch=hatch_patterns[1], label='Market Revenue' if shape_idx == 0 else "", alpha=alpha)
+
+        # Plot bars for standard deviation of total revenue
+        bars3 = ax.bar(index + offset + bar_width, std_total_revenues, bar_width, color=colors[2], edgecolor='black', 
+                       hatch=hatch_patterns[2], label='Std Dev of Total Revenue' if shape_idx == 0 else "", alpha=alpha)
+
+        # Add annotations for tariff, market, and standard deviation revenues
+        for bar in bars1:
+            height = bar.get_height()
+            ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), textcoords="offset points", 
+                        ha='center', va='bottom', fontsize=8)
+        for bar1, bar2 in zip(bars1, bars2):
+            height1 = bar1.get_height()
+            height2 = bar2.get_height()
+            total_height = height1 + height2
+            ax.annotate(f'{height2:.2f}', xy=(bar2.get_x() + bar2.get_width() / 2, total_height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+        for bar in bars3:
+            height = bar.get_height()
+            ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+
+        # Add shape labels
+        shapes_labels.extend([f'{shape}'])
+        num_scenarios_per_shape.append(len(average_market_revenues))
+        shape_idx += 1
+
+    # Adjust tick positions and labels
+    total_bars = sum(num_scenarios_per_shape)
+    ticks_positions = np.arange(total_bars) * bar_width * 3 + bar_width / 2  # Adjusting tick positions for wider spacing
+    ax.set_xticks(ticks_positions)
+    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)
+
+    ax.set_xlabel('Shapes', fontsize=10)
+    ax.set_ylabel('Revenue (EUR/y)', fontsize=10)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fontsize=10)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "revenue_comparison.jpg"), dpi=600)
+
     
 def plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
     

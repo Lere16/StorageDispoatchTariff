@@ -40,6 +40,7 @@ STORAGE_RESULT = runStorageDispatchCases(params, scenario_cases, DF_PRICE, base_
 plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, params)
 
 
+''' 
 
 print("STEP 2 : SENSITIVITY ANALYSIS FOR STORAGE DISPATCH")  
 #Sensitity analysis for delta
@@ -63,14 +64,7 @@ scenario_cases = SCENARIOS[25:29]
 STORAGE_RESULT = runStorageConfiguration(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD) 
 plotStorageConfiguration(scenario_cases, STORAGE_RESULT, params)
 
-
-
-
-
-
-
-
-
+'''
 
 
 
