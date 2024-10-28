@@ -1833,8 +1833,8 @@ def plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir_plot):
     bar_width = 0.35
     index = np.arange(len(deltas))
     
-    bars1 = ax1.bar(index, average_market_revenues, bar_width, label='Market Revenue', color='#1f77b4', edgecolor='black')
-    bars2 = ax1.bar(index, average_tariff_revenues, bar_width, bottom=average_market_revenues, label='Tariff Revenue', color='#ff7f0e', edgecolor='black')
+    bars1 = ax1.bar(index, average_market_revenues, bar_width, label='Energy market revenue', color='#1f77b4', edgecolor='black')
+    bars2 = ax1.bar(index, average_tariff_revenues, bar_width, bottom=average_market_revenues, label='Tariff-based Revenue', color='#ff7f0e', edgecolor='black')
 
     ax1.set_xlabel('Δ', fontsize=16)
     ax1.set_ylabel('Average Revenue (EUR/y)', fontsize=14)
@@ -2052,7 +2052,7 @@ def plot_stacked_revenues_by_shape_horizontal(STORAGE_RESULT, params, output_dir
     return None
 
 
-def plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir_plot):
+def plot_stacked_revenues_by_shape_vertical_OK(STORAGE_RESULT, params, output_dir_plot):
     # Obtenir toutes les formes uniques
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
     colors = ['#1f77b4', '#ff7f0e']  # Couleurs pour Market Revenue et Tariff Revenue
@@ -2143,7 +2143,211 @@ def plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir_p
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_share_and_shape_stacked_vertical.png"), dpi=400)
+    plt.close(fig)
     return None
+
+def plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir_plot):
+    # Obtenir toutes les formes uniques
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#1f77b4', '#ff7f0e']  # Couleurs pour Market Revenue et Tariff Revenue
+    bar_width = 0.45
+
+    for shape in shapes:
+        # Initialiser les listes pour chaque forme
+        shares = []
+        average_market_revenues = []
+        average_tariff_revenues = []
+
+        # Créer une nouvelle figure pour chaque forme
+        fig, ax = plt.subplots(figsize=(6, 6))
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculer les revenus
+                df_delta['revenue_net'] = df_delta['dispatch'] * df_delta['price']
+                df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
+                df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
+
+                # Calculer les revenus annuels moyens
+                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum().tolist()
+                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum().tolist()
+
+                # Calculer les revenus moyens
+                average_market_revenue = np.mean(annual_market_revenue)
+                average_tariff_revenue = np.mean(annual_tariff_revenue)
+
+                # Lire le share
+                share = float(params[scenario]['global']['tariff']['share'])
+
+                # Stocker les valeurs
+                shares.append(share)
+                average_market_revenues.append(average_market_revenue)
+                average_tariff_revenues.append(average_tariff_revenue)
+
+        # Convertir les listes en arrays numpy
+        shares = np.array(shares)
+        average_market_revenues = np.array(average_market_revenues)
+        average_tariff_revenues = np.array(average_tariff_revenues)
+
+        # Tracer les bar charts pour la forme actuelle
+        index = np.arange(len(shares))
+        
+        bars1 = ax.bar(index, average_market_revenues, bar_width, label='Market Revenue', color=colors[0], edgecolor='black')
+        bars2 = ax.bar(index, average_tariff_revenues, bar_width, bottom=average_market_revenues, label='Tariff Revenue', color=colors[1], edgecolor='black')
+
+        # Ajouter les annotations pour les pourcentages
+        for bar1, bar2 in zip(bars1, bars2):
+            height1 = bar1.get_height()
+            height2 = bar2.get_height()
+            total_height = height1 + height2
+
+            if total_height > 0:
+                market_pct = (height1 / total_height) * 100
+                tariff_pct = (height2 / total_height) * 100
+
+                # Ajuster les pourcentages pour qu'ils ne dépassent pas 100%
+                #market_pct = min(market_pct, 100)
+                #tariff_pct = min(tariff_pct, 100 - market_pct)
+
+                ax.annotate(f'{market_pct:.1f}%', 
+                            xy=(bar1.get_x() + bar1.get_width() / 2, height1 / 2), 
+                            xytext=(0, 0), 
+                            textcoords='offset points', 
+                            ha='center', 
+                            color='white',
+                            fontsize=7)
+
+                ax.annotate(f'{tariff_pct:.1f}%', 
+                            xy=(bar2.get_x() + bar2.get_width() / 2, height1 + height2 / 2), 
+                            xytext=(0, 0), 
+                            textcoords='offset points', 
+                            ha='center', 
+                            color='black',
+                            rotation='vertical',
+                            fontsize=7)
+
+        ax.set_xlabel('share')
+        ax.set_ylabel('Average Revenue (EUR/y)')
+        ax.set_title(f'{shape}')
+        ax.set_xticks(index)
+        ax.set_xticklabels([f'{share:.2f}' for share in shares])
+
+        # Ajuster la limite supérieure de l'axe y pour ajouter de l'espace au-dessus des barres
+        max_height = (average_market_revenues + average_tariff_revenues).max()
+        ax.set_ylim(0, max_height * 1.1)  # Ajouter 10% d'espace au-dessus
+
+        # Créer une seule légende sous chaque figure
+        ax.legend([bars1, bars2], labels=['Energy market revenue', 'Tariff-based revenue'], loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.3))
+
+        # Ajuster la place en bas pour la légende
+        plt.tight_layout()
+        plt.subplots_adjust(bottom=0.3)  # Ajuster pour ne pas superposer la légende et les étiquettes
+
+        # Enregistrer chaque figure individuellement avec le nom de la forme
+        plt.savefig(os.path.join(output_dir_plot, f"Sensitivity_on_share_and_shape_stacked_{shape}.png"), dpi=500)
+        plt.close(fig)
+
+    return None
+
+
+def plot_stacked_revenues_by_shape_vertical_ok2(STORAGE_RESULT, params, output_dir_plot):
+    # Obtenir toutes les formes uniques
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#1f77b4', '#ff7f0e']  # Couleurs pour Market Revenue et Tariff Revenue
+    bar_width = 0.4
+
+    for shape in shapes:
+        # Initialiser les listes pour chaque forme
+        shares = []
+        average_market_revenues = []
+        average_tariff_revenues = []
+
+        # Créer une nouvelle figure pour chaque forme
+        fig, ax = plt.subplots(figsize=(6, 6))
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculer les revenus
+                df_delta['revenue_net'] = df_delta['dispatch'] * df_delta['price']
+                df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
+                df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
+
+                # Calculer les revenus annuels moyens
+                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum().tolist()
+                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum().tolist()
+
+                # Calculer les revenus moyens
+                average_market_revenue = np.mean(annual_market_revenue)
+                average_tariff_revenue = np.mean(annual_tariff_revenue)
+
+                # Lire le share
+                share = float(params[scenario]['global']['tariff']['share'])
+
+                # Stocker les valeurs
+                shares.append(share)
+                average_market_revenues.append(average_market_revenue)
+                average_tariff_revenues.append(average_tariff_revenue)
+
+        # Convertir les listes en arrays numpy
+        shares = np.array(shares)
+        average_market_revenues = np.array(average_market_revenues)
+        average_tariff_revenues = np.array(average_tariff_revenues)
+
+        # Tracer les bar charts pour la forme actuelle
+        index = np.arange(len(shares))
+        
+        bars1 = ax.bar(index, average_market_revenues, bar_width, label='Energy market revenue', color=colors[0], edgecolor='black')
+        bars2 = ax.bar(index, average_tariff_revenues, bar_width, bottom=average_market_revenues, label='Tariff-based revenue', color=colors[1], edgecolor='black')
+
+        # Ajouter les annotations pour les pourcentages
+        for bar1, bar2 in zip(bars1, bars2):
+            height1 = bar1.get_height()
+            height2 = bar2.get_height()
+            total_height = height1 + height2
+
+            if total_height > 0:
+                market_pct = (height1 / total_height) * 100
+                tariff_pct = (height2 / total_height) * 100
+
+                # Ajuster les pourcentages pour qu'ils ne dépassent pas 100%
+                #market_pct = min(market_pct, 100)
+                #tariff_pct = min(tariff_pct, 100 - market_pct)
+
+                ax.annotate(f'{market_pct:.1f}%', 
+                            xy=(bar1.get_x() + bar1.get_width() / 2, height1 / 2), 
+                            xytext=(0, 0), 
+                            textcoords='offset points', 
+                            ha='center', 
+                            color='white',
+                            fontsize=7)
+
+                ax.annotate(f'{tariff_pct:.1f}%', 
+                            xy=(bar2.get_x() + bar2.get_width() / 2, height1 + height2 / 2), 
+                            xytext=(0, 0), 
+                            textcoords='offset points', 
+                            ha='center', 
+                            color='black',
+                            rotation='vertical',
+                            fontsize=7)
+
+        ax.set_xlabel('share')
+        ax.set_ylabel('Average Revenue (EUR/y)')
+        ax.set_title(f'{shape}')
+        ax.set_xticks(index)
+        ax.set_xticklabels([f'{share:.2f}' for share in shares])
+        #ax.legend()
+
+        # Créer une seule légende sous chaque figure
+        ax.legend([bars1, bars2], labels=['Energy market revenue', 'Tariff-based revenue'], loc='lower center', ncol=2, bbox_to_anchor=(0.5, -0.15))
+
+        plt.tight_layout()
+        plt.subplots_adjust(bottom=0.25)  # Ajuster la place pour la légende
+        # Enregistrer chaque figure individuellement avec le nom de la forme
+        plt.savefig(os.path.join(output_dir_plot, f"Sensitivity_on_share_and_shape_stacked_{shape}.png"), dpi=400)
+        plt.close(fig)
+
+    return None
+
 
 
 def plotStorageDispatchConfiguration(scenario_cases, STORAGE_RESULT, params, output_dir_plot):

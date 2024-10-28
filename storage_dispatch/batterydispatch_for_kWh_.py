@@ -132,13 +132,14 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     
     
     #limit net load to the network limit capacity
+    
     # Calculate net load
-    ''' 
+    
     total_load = Variable(bat, 'total_load', domain=[t], type='free')
     deftotalload = Equation(bat, name="deftotalload", domain=[t])
     deftotalload[t] = total_load[t] == gridload[t] + Pc[t]
     total_load.up[t]=cap_limit
-    '''
+    
     
     #avoid negative net load
     load_injection = Variable(bat, 'load_injection', domain=[t], type='free')

@@ -42,21 +42,22 @@ plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, params)
 
 
 
-
+'''
 print("STEP 2 : SENSITIVITY ANALYSIS FOR STORAGE DISPATCH")  
 #Sensitity analysis for delta
 scenario_cases = SCENARIOS[4:13]
 STORAGE_RESULT = runStorageDispatchSensitivitydelta(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD)
 categories = ['Revenue Market', 'Revenue Tariff', 'Total Revenue']
 plotStorageDispatchSensitivitydelta(params, STORAGE_RESULT,categories)
+'''
 
-
-''' 
+'''
 # sensitivity analysis for share 
 print("-*- Sensitivity analysis on share")
 scenario_cases = SCENARIOS[13:25]
 STORAGE_RESULT = runStorageDispatchSensitivityShare(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD)
 plotStorageDispatchSensitivityShare(params, STORAGE_RESULT)
+'''
 
 
 
@@ -65,7 +66,7 @@ scenario_cases = SCENARIOS[25:29]
 STORAGE_RESULT = runStorageConfiguration(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD) 
 plotStorageConfiguration(scenario_cases, STORAGE_RESULT, params)
 
-'''
+
 
 
 
