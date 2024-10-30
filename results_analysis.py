@@ -447,8 +447,9 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     output_dir_plot = 'results/plots/storage_dispatch'
     os.makedirs(output_dir_plot, exist_ok=True)
     
+    TEMP1= STORAGE_RESULT.copy()
     for scenario in scenario_cases:
-        df = STORAGE_RESULT[scenario].loc[(STORAGE_RESULT[scenario]['year'] == year_plot) & (STORAGE_RESULT[scenario]['hour'].between(start_hour, end_hour))]; df = df.set_index('hour')
+        df = TEMP1[scenario].loc[(TEMP1[scenario]['year'] == year_plot) & (TEMP1[scenario]['hour'].between(start_hour, end_hour))]; df = df.set_index('hour')
         # Plot Storage dispatch
         labels_storage = ['charge', 'discharge', 'tariff_level']
         colors_storage= ['hotpink', 'darkcyan', 'black']
@@ -615,7 +616,117 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot)
     plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir_plot) 
     plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot)   
+    plot_dispatch_heatmaps(STORAGE_RESULT,output_dir_plot, params, scenario_cases)
+    #plot_dispatch_distribution(STORAGE_RESULT, year=2023, plot_type='box')
+    plot_dispatch_distribution(STORAGE_RESULT, year=2023, plot_type='violin')
     return None 
+
+
+def plot_dispatch_heatmaps(storage_results,output_dir_plot,params,scenario_cases, year=2023, figsize=(16, 16)):
+    """
+    Plots a 2x2 grid of heatmaps showing the dispatch patterns for each scenario in the given dictionary.
+    
+    Parameters:
+    - storage_results (dict): Dictionary where keys are scenario names and values are DataFrames with dispatch data.
+    - year (int): Year to filter the data for (default is 2023).
+    - figsize (tuple): Size of the figure (default is (20, 12)).
+    
+    Each DataFrame in storage_results should have:
+    - 'hour': Hour column (0-23, repeating daily)
+    - 'dispatch': Dispatch power for the hour
+    - 'year': Year column to filter the data
+    
+    Returns:
+    - None. Displays the heatmap.
+    """
+    # Define a 2x2 plot grid
+    fig, axes = plt.subplots(2, 2, figsize=figsize)
+    axes = axes.flatten()  # Flatten to iterate over the 4 subplots easily
+    
+    # Calculate the number of days in the specified year
+    num_days_in_year = 366 if pd.Timestamp(year=year, month=12, day=31).is_leap_year else 365
+
+    scenarios_labels = {scenario_cases[0]: params[scenario_cases[0]]['global']['tariff']['shape'],
+                        scenario_cases[1]: params[scenario_cases[1]]['global']['tariff']['shape'],
+                        scenario_cases[2]: params[scenario_cases[2]]['global']['tariff']['shape'],
+                        scenario_cases[3]: params[scenario_cases[3]]['global']['tariff']['shape'],
+                        }
+
+    # Loop over each scenario and plot in the corresponding subplot
+    for i, (scenario_name, data) in enumerate(storage_results.items()):
+        # Filter the data for the specified year
+        data_year = data[data['year'] == year].copy()
+        
+        # Add 'day' column to group data into daily blocks
+        data_year['day'] = (data_year['hour'] // 24) + 1  # Integer division to get day indices
+        data_year['hour_of_day'] = data_year['hour'] % 24  # Modulus to get hour of each day (0-23)
+        
+        # Create an empty matrix with NaNs for missing values
+        heatmap_data = np.full((num_days_in_year, 24), np.nan)  # Adjusted for leap/non-leap year
+        
+        # Populate the matrix with dispatch values
+        for _, row in data_year.iterrows():
+            day_idx = int(row['day']) - 1  # Convert to zero-indexed
+            hour_idx = int(row['hour_of_day'])
+            # Ensure the index does not exceed the matrix bounds
+            if day_idx < num_days_in_year:
+                heatmap_data[day_idx, hour_idx] = row['dispatch']
+        
+        # Plot heatmap for the current scenario
+        sns.heatmap(heatmap_data, cmap="coolwarm", center=0, ax=axes[i], 
+                    cbar_kws={'label': 'Dispatch Power (MW)'})
+        axes[i].set_title(f"{scenarios_labels[scenario_name]}", fontsize=12)
+        axes[i].set_xlabel("Hour of Day")
+        axes[i].set_ylabel("Day of Year")
+    
+    # Adjust layout and add an overarching title
+    plt.tight_layout()
+    #plt.suptitle(f"Hourly Dispatch Heatmap for Different Tariff Scenarios in {year}", fontsize=16, y=1.02)
+    plt.savefig(os.path.join(output_dir_plot, f'HEATMAP_STORAGE_DISPATCH_{year}.jpg'), dpi=400)
+    return None
+
+def plot_dispatch_distribution(storage_results,output_dir_plot, year=2023, plot_type='box', figsize=(12, 8)):
+    """
+    Plots a box or violin plot for the dispatch distribution across different tariff scenarios.
+    
+    Parameters:
+    - storage_results (dict): Dictionary where keys are scenario names and values are DataFrames with dispatch data.
+    - year (int): Year to filter the data for (default is 2023).
+    - plot_type (str): Type of plot - 'box' for box plot, 'violin' for violin plot (default is 'box').
+    - figsize (tuple): Size of the figure (default is (12, 8)).
+    
+    Each DataFrame in storage_results should have:
+    - 'dispatch': Dispatch power for the hour
+    - 'year': Year column to filter the data
+    
+    Returns:
+    - None. Displays the box or violin plot.
+    """
+    # Prepare the combined DataFrame for all scenarios for the specified year
+    combined_data = []
+    for scenario_name, data in storage_results.items():
+        # Filter data by year and add a column for the scenario name
+        scenario_data = data[data['year'] == year][['dispatch']].copy()
+        scenario_data['Scenario'] = scenario_name
+        combined_data.append(scenario_data)
+    
+    # Concatenate all scenario data
+    combined_df = pd.concat(combined_data)
+    
+    # Plot using seaborn based on specified plot type
+    plt.figure(figsize=figsize)
+    if plot_type == 'box':
+        sns.boxplot(data=combined_df, x='Scenario', y='dispatch', palette="coolwarm")
+        plt.title(f"Box Plot of Storage Dispatch Across Scenarios for {year}")
+    elif plot_type == 'violin':
+        sns.violinplot(data=combined_df, x='Scenario', y='dispatch', palette="coolwarm", bw=0.2)
+        plt.title(f"Violin Plot of Storage Dispatch Across Scenarios for {year}")
+    
+    # Set labels
+    plt.xlabel("Tariff Scenarios")
+    plt.ylabel("Dispatch Power (MW)")
+    plt.show()
+    return None
 
 
 

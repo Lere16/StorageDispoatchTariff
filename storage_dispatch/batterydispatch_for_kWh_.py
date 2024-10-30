@@ -141,6 +141,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     total_load.up[t]=cap_limit
     
     
+    
     #avoid negative net load
     load_injection = Variable(bat, 'load_injection', domain=[t], type='free')
     defload_injection = Equation(bat, name="defload_injection", domain=[t])
@@ -216,7 +217,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
 
         
         # define ojective function when tariff is on
-        defobj[...] = obj == Sum(t, (Pd[t] - Pc[t]) * (P[t] + tariff_level[t])) - 0#(annual_cap_cost + annual_OM)
+        defobj[...] = obj == Sum(t, (Pd[t] - Pc[t]) * (P[t] + tariff_level[t])) - (annual_cap_cost + annual_OM)
         
         opt = Model(
             bat,
@@ -230,7 +231,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
 
     else: # objective function Without tariff
         tariff_level.fx[t]= 0.01e-15
-        defobj[...] = obj == Sum(t, (Pd[t] - Pc[t]) * P[t]) - 0#(annual_cap_cost + annual_OM)
+        defobj[...] = obj == Sum(t, (Pd[t] - Pc[t]) * P[t]) - (annual_cap_cost + annual_OM)
         opt = Model(
             bat,
             name="opt",
