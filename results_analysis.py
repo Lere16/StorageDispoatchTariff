@@ -620,6 +620,7 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     
     plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=2023, plot_type='violin')
     plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=2023, plot_type='box')
+    plot_monthly_dispatch(STORAGE_RESULT, scenario_cases)
     
     return None 
 
@@ -734,6 +735,54 @@ def plot_dispatch_distribution(storage_results,output_dir_plot, params, scenario
     plt.ylabel("Dispatch Power (MW)")
     plt.savefig(os.path.join(output_dir_plot, f'DISPATCH_DISTRIBUTION_{plot_type}.jpg'), dpi=400)
     return None
+
+
+def plot_monthly_dispatch(dispatch_data, scenarios):
+    """
+    Plots monthly box plots for dispatch power, separated into charging and discharging,
+    to compare dispatch patterns over a year.
+
+    Parameters:
+    - dispatch_data: dict of dataframes for each tariff scenario, each containing dispatch and timestamp data.
+    - scenarios: list of scenario names in the dictionary to compare.
+    """
+    fig, axes = plt.subplots(len(scenarios), 2, figsize=(16, 12), sharey=True)
+    fig.suptitle('Monthly Distribution of Charging and Discharging Power by Tariff Scenario', fontsize=16)
+
+    for i, scenario in enumerate(scenarios):
+        df = dispatch_data[scenario]
+        
+        # Filter data for each scenario to obtain only 1 year if desired, e.g., 2023
+        df = df[df['year'] == 2023]
+        
+        # Add month column for grouping
+        df['month'] = pd.to_datetime(df['hour'], unit='h').dt.month
+        
+        # Separate dispatch into charging (negative values) and discharging (positive values)
+        df['charging'] = df['dispatch'].where(df['dispatch'] < 0, None)  # only negative values
+        df['discharging'] = df['dispatch'].where(df['dispatch'] > 0, None)  # only positive values
+        
+        # Plot Charging Power as Box Plot
+        sns.boxplot(
+            data=df, x='month', y='charging', ax=axes[i, 0],
+            color='blue', whis=[5, 95]  # 5th to 95th percentile for whiskers
+        )
+        axes[i, 0].set_title(f'{scenario} - Monthly Charging Power')
+        axes[i, 0].set_ylabel('Power (MW)')
+        axes[i, 0].set_xlabel('Month')
+        
+        # Plot Discharging Power as Box Plot
+        sns.boxplot(
+            data=df, x='month', y='discharging', ax=axes[i, 1],
+            color='orange', whis=[5, 95]
+        )
+        axes[i, 1].set_title(f'{scenario} - Monthly Discharging Power')
+        axes[i, 1].set_ylabel('Power (MW)')
+        axes[i, 1].set_xlabel('Month')
+    
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.show()    
+    return None 
 
 
 

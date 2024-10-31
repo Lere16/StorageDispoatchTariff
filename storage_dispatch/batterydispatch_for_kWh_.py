@@ -243,7 +243,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         )
     
      
-    opt.solve(solver="CPLEX", solver_options={'optimalitytarget': 3, 'subalg': 4, 'mipdisplay': 5, 'mipgap':0.03,'timelimit': 1800, 'mipemphasis': 3, 'threads': 32}, ) # output=sys.stdout
+    opt.solve(solver="CPLEX", solver_options={'optimalitytarget': 3, 'subalg': 4, 'mipdisplay': 5, 'mipgap':0.03,'timelimit': 1800, 'mipemphasis': 3, 'threads': 8}, ) # output=sys.stdout
     #reporting data and parameters 
     rep = Parameter(bat, name="rep", domain=[t, "*"])
     rep[t, "Pc"] = Pc.l[t]
