@@ -616,16 +616,16 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot)
     plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir_plot) 
     plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot)   
-    plot_dispatch_heatmaps(STORAGE_RESULT,output_dir_plot, params, scenario_cases)
+    plot_dispatch_heatmaps(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=year_plot)
     
-    plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=2023, plot_type='violin')
-    plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=2023, plot_type='box')
-    plot_monthly_dispatch(STORAGE_RESULT, scenario_cases)
-    
+    plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=year_plot, plot_type='violin')
+    plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=year_plot, plot_type='box')
+    plot_monthly_totals_stacked_bar(STORAGE_RESULT, scenario_cases, output_dir_plot)
+    plot_monthly_avg_dispatch(STORAGE_RESULT, scenario_cases, output_dir_plot)
     return None 
 
 
-def plot_dispatch_heatmaps(storage_results,output_dir_plot,params,scenario_cases, year=2023, figsize=(16, 16)):
+def plot_dispatch_heatmaps(storage_results,output_dir_plot,params,scenario_cases, year=2015, figsize=(16, 16)):
     """
     Plots a 2x2 grid of heatmaps showing the dispatch patterns for each scenario in the given dictionary.
     
@@ -737,52 +737,105 @@ def plot_dispatch_distribution(storage_results,output_dir_plot, params, scenario
     return None
 
 
-def plot_monthly_dispatch(dispatch_data, scenarios):
+def plot_monthly_totals_stacked_bar(dispatch_data, scenarios, output_dir_plot):
     """
-    Plots monthly box plots for dispatch power, separated into charging and discharging,
-    to compare dispatch patterns over a year.
+    Generates a stacked bar chart for each scenario, showing monthly totals of charging and discharging.
 
     Parameters:
-    - dispatch_data: dict of dataframes for each tariff scenario, each containing dispatch and timestamp data.
+    - dispatch_data: dictionary of dataframes for each tariff scenario, each containing dispatch data with timestamps.
     - scenarios: list of scenario names in the dictionary to compare.
     """
-    fig, axes = plt.subplots(len(scenarios), 2, figsize=(16, 12), sharey=True)
-    fig.suptitle('Monthly Distribution of Charging and Discharging Power by Tariff Scenario', fontsize=16)
+    # Set up the plot
+    fig, axes = plt.subplots(len(scenarios), 1, figsize=(12, len(scenarios) * 5), sharex=True)
+    fig.suptitle('Monthly Totals of Charging and Discharging for Each Scenario', fontsize=16)
 
     for i, scenario in enumerate(scenarios):
         df = dispatch_data[scenario]
         
-        # Filter data for each scenario to obtain only 1 year if desired, e.g., 2023
-        df = df[df['year'] == 2023]
+        # Add datetime columns for monthly aggregation
+        df['datetime'] = pd.to_datetime(df['hour'], unit='h')
+        df['month'] = df['datetime'].dt.month
+        df['year'] = df['datetime'].dt.year
         
-        # Add month column for grouping
-        df['month'] = pd.to_datetime(df['hour'], unit='h').dt.month
-        
-        # Separate dispatch into charging (negative values) and discharging (positive values)
-        df['charging'] = df['dispatch'].where(df['dispatch'] < 0, None)  # only negative values
-        df['discharging'] = df['dispatch'].where(df['dispatch'] > 0, None)  # only positive values
-        
-        # Plot Charging Power as Box Plot
-        sns.boxplot(
-            data=df, x='month', y='charging', ax=axes[i, 0],
-            color='blue', whis=[5, 95]  # 5th to 95th percentile for whiskers
-        )
-        axes[i, 0].set_title(f'{scenario} - Monthly Charging Power')
-        axes[i, 0].set_ylabel('Power (MW)')
-        axes[i, 0].set_xlabel('Month')
-        
-        # Plot Discharging Power as Box Plot
-        sns.boxplot(
-            data=df, x='month', y='discharging', ax=axes[i, 1],
-            color='orange', whis=[5, 95]
-        )
-        axes[i, 1].set_title(f'{scenario} - Monthly Discharging Power')
-        axes[i, 1].set_ylabel('Power (MW)')
-        axes[i, 1].set_xlabel('Month')
-    
+        # Filter to the required year range if necessary; otherwise, use all available data
+        monthly_totals = df.groupby(['year', 'month']).agg({
+            'Pc': 'sum',   # Charging power totals
+            'Pd': 'sum'    # Discharging power totals
+        }).reset_index()
+
+        # Plot data for each year as a separate bar in each month
+        for year in monthly_totals['year'].unique():
+            month_data = monthly_totals[monthly_totals['year'] == year]
+            charging_totals = month_data['Pc'].values
+            discharging_totals = month_data['Pd'].values
+
+            # Plot charging totals
+            axes[i].bar(
+                month_data['month'], charging_totals, label=f'{year} - Charging',
+                color='skyblue', alpha=0.7
+            )
+            # Plot discharging totals stacked on top of charging
+            axes[i].bar(
+                month_data['month'], discharging_totals, bottom=charging_totals,
+                label=f'{year} - Discharging', color='salmon', alpha=0.7
+            )
+
+        # Titles and labels
+        axes[i].set_title(f'{scenario} - Monthly Charging and Discharging Totals')
+        axes[i].set_ylabel('Total Dispatch Power (MWh)')
+        axes[i].set_xlabel('Month')
+        axes[i].legend()
+
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.show()    
+    plt.savefig(os.path.join(output_dir_plot, f'MONTHLY_TOTALS_STACKED_BAR.jpg'), dpi=400)
     return None 
+
+def plot_monthly_avg_dispatch(dispatch_data, scenarios, output_dir_plot):
+    """
+    Generates a line plot for each scenario, showing monthly average dispatch power (charging and discharging).
+
+    Parameters:
+    - dispatch_data: dictionary of dataframes for each tariff scenario, each containing dispatch data with timestamps.
+    - scenarios: list of scenario names in the dictionary to compare.
+    """
+    # Set up the plot
+    fig, axes = plt.subplots(len(scenarios), 1, figsize=(12, len(scenarios) * 5), sharex=True)
+    fig.suptitle('Monthly Average Dispatch Power for Charging and Discharging', fontsize=16)
+
+    for i, scenario in enumerate(scenarios):
+        df = dispatch_data[scenario]
+        
+        # Add datetime columns for monthly aggregation
+        df['datetime'] = pd.to_datetime(df['hour'], unit='h')
+        df['month'] = df['datetime'].dt.month
+        df['year'] = df['datetime'].dt.year
+        
+        # Calculate monthly averages for charging and discharging
+        monthly_avg = df.groupby(['year', 'month']).agg({
+            'Pc': 'mean',   # Average charging power
+            'Pd': 'mean'    # Average discharging power
+        }).reset_index()
+
+        # Plot each year separately for comparison
+        for year in monthly_avg['year'].unique():
+            year_data = monthly_avg[monthly_avg['year'] == year]
+            axes[i].plot(
+                year_data['month'], year_data['Pc'], label=f'{year} - Charging Avg',
+                color='blue', linestyle='--', marker='o', alpha=0.7
+            )
+            axes[i].plot(
+                year_data['month'], year_data['Pd'], label=f'{year} - Discharging Avg',
+                color='red', linestyle='--', marker='o', alpha=0.7
+            )
+
+        # Titles and labels
+        axes[i].set_title(f'{scenario} - Monthly Average Charging and Discharging Dispatch')
+        axes[i].set_ylabel('Average Dispatch Power (MWh)')
+        axes[i].set_xlabel('Month')
+        axes[i].legend()
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(os.path.join(output_dir_plot, f'MONTHLY_AVERAGE_DISPATCH.jpg'), dpi=400)
 
 
 
