@@ -617,8 +617,10 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     plot_tariff_revenue_comparison(STORAGE_RESULT, params, output_dir_plot) 
     plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot)   
     plot_dispatch_heatmaps(STORAGE_RESULT,output_dir_plot, params, scenario_cases)
-    #plot_dispatch_distribution(STORAGE_RESULT, year=2023, plot_type='box')
-    plot_dispatch_distribution(STORAGE_RESULT, year=2023, plot_type='violin')
+    
+    plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=2023, plot_type='violin')
+    plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=2023, plot_type='box')
+    
     return None 
 
 
@@ -685,7 +687,7 @@ def plot_dispatch_heatmaps(storage_results,output_dir_plot,params,scenario_cases
     plt.savefig(os.path.join(output_dir_plot, f'HEATMAP_STORAGE_DISPATCH_{year}.jpg'), dpi=400)
     return None
 
-def plot_dispatch_distribution(storage_results,output_dir_plot, year=2023, plot_type='box', figsize=(12, 8)):
+def plot_dispatch_distribution(storage_results,output_dir_plot, params, scenario_cases, year=2023, plot_type='box', figsize=(12, 8)):
     """
     Plots a box or violin plot for the dispatch distribution across different tariff scenarios.
     
@@ -702,12 +704,17 @@ def plot_dispatch_distribution(storage_results,output_dir_plot, year=2023, plot_
     Returns:
     - None. Displays the box or violin plot.
     """
+    scenarios_labels = {scenario_cases[0]: params[scenario_cases[0]]['global']['tariff']['shape'],
+                        scenario_cases[1]: params[scenario_cases[1]]['global']['tariff']['shape'],
+                        scenario_cases[2]: params[scenario_cases[2]]['global']['tariff']['shape'],
+                        scenario_cases[3]: params[scenario_cases[3]]['global']['tariff']['shape'],
+                        }
     # Prepare the combined DataFrame for all scenarios for the specified year
     combined_data = []
     for scenario_name, data in storage_results.items():
         # Filter data by year and add a column for the scenario name
         scenario_data = data[data['year'] == year][['dispatch']].copy()
-        scenario_data['Scenario'] = scenario_name
+        scenario_data['Scenario'] = scenarios_labels[scenario_name]
         combined_data.append(scenario_data)
     
     # Concatenate all scenario data
@@ -717,15 +724,15 @@ def plot_dispatch_distribution(storage_results,output_dir_plot, year=2023, plot_
     plt.figure(figsize=figsize)
     if plot_type == 'box':
         sns.boxplot(data=combined_df, x='Scenario', y='dispatch', palette="coolwarm")
-        plt.title(f"Box Plot of Storage Dispatch Across Scenarios for {year}")
+        #plt.title(f"Box Plot of Storage Dispatch Across Scenarios for {year}")
     elif plot_type == 'violin':
         sns.violinplot(data=combined_df, x='Scenario', y='dispatch', palette="coolwarm", bw=0.2)
-        plt.title(f"Violin Plot of Storage Dispatch Across Scenarios for {year}")
+        #plt.title(f"Violin Plot of Storage Dispatch Across Scenarios for {year}")
     
     # Set labels
     plt.xlabel("Tariff Scenarios")
     plt.ylabel("Dispatch Power (MW)")
-    plt.show()
+    plt.savefig(os.path.join(output_dir_plot, f'DISPATCH_DISTRIBUTION_{plot_type}.jpg'), dpi=400)
     return None
 
 
