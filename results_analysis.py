@@ -443,6 +443,7 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     #Plot hourly storage dipatch for each scenario 
     
     #for each scenario
+    TEMP2= STORAGE_RESULT.copy()
     
     output_dir_plot = 'results/plots/storage_dispatch'
     os.makedirs(output_dir_plot, exist_ok=True)
@@ -551,7 +552,8 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     fig_profit_netload.write_html(os.path.join(output_dir_plot, f'netload_profit.html'))
     
     # Only revenue to avoid negetaive part
-    combined_df2 = pd.concat([df.assign(scenario=scenario) for scenario, df in STORAGE_RESULT.items()], ignore_index=True)
+    
+    combined_df2 = pd.concat([df.assign(scenario=scenario) for scenario, df in TEMP2.items()], ignore_index=True)
     combined_df2['year'] = combined_df2['year'].astype(str)
     combined_df2['revenue'] = combined_df2['Pd']*combined_df2['price']
     #selected_tariff = ["without tarif", "flat", "proportional", "piecewise"]
@@ -618,10 +620,13 @@ def plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, par
     plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot)   
     plot_dispatch_heatmaps(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=year_plot)
     
-    plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=year_plot, plot_type='violin')
+    plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, plot_type='violin')
     plot_dispatch_distribution(STORAGE_RESULT,output_dir_plot, params, scenario_cases, year=year_plot, plot_type='box')
-    plot_monthly_totals_stacked_bar(STORAGE_RESULT, scenario_cases, output_dir_plot)
-    plot_monthly_avg_dispatch(STORAGE_RESULT, scenario_cases, output_dir_plot)
+   
+    plot_dispatch_distribution_grid(STORAGE_RESULT, output_dir_plot, params, scenario_cases, plot_type='box')
+    plot_dispatch_distribution_grid(STORAGE_RESULT, output_dir_plot, params, scenario_cases, plot_type='violin')
+    plot_monthly_average_dispatch(STORAGE_RESULT, output_dir_plot, scenario_cases, params)
+    plot_monthly_average_dispatch(STORAGE_RESULT, output_dir_plot, scenario_cases, params)
     return None 
 
 
@@ -737,105 +742,280 @@ def plot_dispatch_distribution(storage_results,output_dir_plot, params, scenario
     return None
 
 
-def plot_monthly_totals_stacked_bar(dispatch_data, scenarios, output_dir_plot):
-    """
-    Generates a stacked bar chart for each scenario, showing monthly totals of charging and discharging.
 
+    
+    
+def plot_dispatch_distribution_grid_1(storage_results, output_dir_plot, params, scenario_cases, plot_type='box', figsize=(15, 15)):
+    """
+    Plots a 3x3 grid of box or violin plots for the dispatch distribution across different tariff scenarios for each unique year in the data.
+    
     Parameters:
-    - dispatch_data: dictionary of dataframes for each tariff scenario, each containing dispatch data with timestamps.
-    - scenarios: list of scenario names in the dictionary to compare.
+    - storage_results (dict): Dictionary where keys are scenario names and values are DataFrames with dispatch data.
+    - output_dir_plot (str): Directory to save the output plot.
+    - params (dict): Dictionary containing scenario parameters.
+    - scenario_cases (list): List of scenario keys to use in the plot.
+    - plot_type (str): Type of plot - 'box' for box plot, 'violin' for violin plot (default is 'box').
+    - figsize (tuple): Size of the entire figure (default is (15, 15) for a 3x3 grid).
+    
+    Each DataFrame in storage_results should have:
+    - 'dispatch': Dispatch power for the hour
+    - 'year': Year column to filter the data.
+    
+    Returns:
+    - None. Displays the 3x3 grid of box or violin plots.
     """
-    # Set up the plot
-    fig, axes = plt.subplots(len(scenarios), 1, figsize=(12, len(scenarios) * 5), sharex=True)
-    fig.suptitle('Monthly Totals of Charging and Discharging for Each Scenario', fontsize=16)
+    # Define scenario labels
+    scenarios_labels = {scenario_cases[0]: params[scenario_cases[0]]['global']['tariff']['shape'],
+                        scenario_cases[1]: params[scenario_cases[1]]['global']['tariff']['shape'],
+                        scenario_cases[2]: params[scenario_cases[2]]['global']['tariff']['shape'],
+                        scenario_cases[3]: params[scenario_cases[3]]['global']['tariff']['shape'],
+                        }
+    
+    # Retrieve all unique years in the dataset
+    all_years = set()
+    for data in storage_results.values():
+        all_years.update(data['year'].unique())
+    all_years = sorted(all_years)  # Sort years for consistent plotting order
+    
+    # Create subplots in a 3x3 grid
+    num_years = len(all_years)
+    fig, axes = plt.subplots(3, 3, figsize=figsize)
+    axes = axes.flatten()  # Flatten for easy iteration over axes
 
-    for i, scenario in enumerate(scenarios):
-        df = dispatch_data[scenario]
+    for idx, year in enumerate(all_years):
+        if idx >= len(axes):
+            break  # Stop if we have more years than subplots
+
+        # Prepare the combined DataFrame for all scenarios for the current year
+        combined_data = []
+        for scenario_name, data in storage_results.items():
+            # Filter data by the current year and add a column for the scenario name
+            scenario_data = data[data['year'] == year][['dispatch']].copy()
+            scenario_data['Scenario'] = scenarios_labels[scenario_name]
+            combined_data.append(scenario_data)
         
-        # Add datetime columns for monthly aggregation
-        df['datetime'] = pd.to_datetime(df['hour'], unit='h')
-        df['month'] = df['datetime'].dt.month
-        df['year'] = df['datetime'].dt.year
+        # Concatenate all scenario data for the current year
+        combined_df = pd.concat(combined_data)
         
-        # Filter to the required year range if necessary; otherwise, use all available data
-        monthly_totals = df.groupby(['year', 'month']).agg({
-            'Pc': 'sum',   # Charging power totals
-            'Pd': 'sum'    # Discharging power totals
-        }).reset_index()
+        # Select the current axis for plotting
+        ax = axes[idx]
+        if plot_type == 'box':
+            sns.boxplot(data=combined_df, x='Scenario', y='dispatch', palette="coolwarm", medianprops={'color': 'red', 'linewidth': 2}, ax=ax)
+        elif plot_type == 'violin':
+            sns.violinplot(data=combined_df, x='Scenario', y='dispatch', palette="coolwarm", bw=0.2, ax=ax)
+        
+        # Set labels and title for the subplot
+        ax.set_xlabel("Tariff Scenarios")
+        ax.set_ylabel("Dispatch Power (MW)")
+        ax.set_title(f"Year: {year}")
+    
+    # Hide any extra subplots if there are less than 9 years
+    for j in range(num_years, len(axes)):
+        axes[j].axis('off')
 
-        # Plot data for each year as a separate bar in each month
-        for year in monthly_totals['year'].unique():
-            month_data = monthly_totals[monthly_totals['year'] == year]
-            charging_totals = month_data['Pc'].values
-            discharging_totals = month_data['Pd'].values
+    # Adjust layout and save the figure
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, f'DISPATCH_DISTRIBUTION_grid_{plot_type}.jpg'), dpi=450)
 
-            # Plot charging totals
-            axes[i].bar(
-                month_data['month'], charging_totals, label=f'{year} - Charging',
-                color='skyblue', alpha=0.7
-            )
-            # Plot discharging totals stacked on top of charging
-            axes[i].bar(
-                month_data['month'], discharging_totals, bottom=charging_totals,
-                label=f'{year} - Discharging', color='salmon', alpha=0.7
-            )
-
-        # Titles and labels
-        axes[i].set_title(f'{scenario} - Monthly Charging and Discharging Totals')
-        axes[i].set_ylabel('Total Dispatch Power (MWh)')
-        axes[i].set_xlabel('Month')
-        axes[i].legend()
-
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(os.path.join(output_dir_plot, f'MONTHLY_TOTALS_STACKED_BAR.jpg'), dpi=400)
     return None 
 
-def plot_monthly_avg_dispatch(dispatch_data, scenarios, output_dir_plot):
+def plot_dispatch_distribution_grid(storage_results, output_dir_plot, params, scenario_cases, plot_type='box', figsize=(15, 15)):
     """
-    Generates a line plot for each scenario, showing monthly average dispatch power (charging and discharging).
-
+    Plots a 3x3 grid of box or violin plots for the dispatch distribution across different tariff scenarios for each unique year in the data.
+    
     Parameters:
-    - dispatch_data: dictionary of dataframes for each tariff scenario, each containing dispatch data with timestamps.
-    - scenarios: list of scenario names in the dictionary to compare.
+    - storage_results (dict): Dictionary where keys are scenario names and values are DataFrames with dispatch data.
+    - output_dir_plot (str): Directory to save the output plot.
+    - params (dict): Dictionary containing scenario parameters.
+    - scenario_cases (list): List of scenario keys to use in the plot.
+    - plot_type (str): Type of plot - 'box' for box plot, 'violin' for violin plot (default is 'box').
+    - figsize (tuple): Size of the entire figure (default is (15, 15) for a 3x3 grid).
+    
+    Each DataFrame in storage_results should have:
+    - 'dispatch': Dispatch power for the hour
+    - 'year': Year column to filter the data.
+    
+    Returns:
+    - None. Displays the 3x3 grid of box or violin plots.
     """
-    # Set up the plot
-    fig, axes = plt.subplots(len(scenarios), 1, figsize=(12, len(scenarios) * 5), sharex=True)
-    fig.suptitle('Monthly Average Dispatch Power for Charging and Discharging', fontsize=16)
+    # Define scenario labels
+    scenarios_labels = {scenario_cases[0]: params[scenario_cases[0]]['global']['tariff']['shape'],
+                        scenario_cases[1]: params[scenario_cases[1]]['global']['tariff']['shape'],
+                        scenario_cases[2]: params[scenario_cases[2]]['global']['tariff']['shape'],
+                        scenario_cases[3]: params[scenario_cases[3]]['global']['tariff']['shape'],
+                        }
+    
+    # Retrieve all unique years in the dataset
+    all_years = set()
+    for data in storage_results.values():
+        all_years.update(data['year'].unique())
+    all_years = sorted(all_years)  # Sort years for consistent plotting order
+    
+    # Create subplots in a 3x3 grid
+    num_years = len(all_years)
+    fig, axes = plt.subplots(3, 3, figsize=figsize)
+    axes = axes.flatten()  # Flatten for easy iteration over axes
 
-    for i, scenario in enumerate(scenarios):
-        df = dispatch_data[scenario]
+    for idx, year in enumerate(all_years):
+        if idx >= len(axes):
+            break  # Stop if we have more years than subplots
+
+        # Prepare the combined DataFrame for all scenarios for the current year
+        combined_data = []
+        for scenario_name, data in storage_results.items():
+            # Filter data by the current year and add a column for the scenario name
+            scenario_data = data[data['year'] == year][['dispatch']].copy()
+            scenario_data['Scenario'] = scenarios_labels[scenario_name]
+            combined_data.append(scenario_data)
         
-        # Add datetime columns for monthly aggregation
-        df['datetime'] = pd.to_datetime(df['hour'], unit='h')
-        df['month'] = df['datetime'].dt.month
-        df['year'] = df['datetime'].dt.year
+        # Concatenate all scenario data for the current year
+        combined_df = pd.concat(combined_data)
         
-        # Calculate monthly averages for charging and discharging
-        monthly_avg = df.groupby(['year', 'month']).agg({
-            'Pc': 'mean',   # Average charging power
-            'Pd': 'mean'    # Average discharging power
-        }).reset_index()
+        # Select the current axis for plotting
+        ax = axes[idx]
+        if plot_type == 'box':
+            sns.boxplot(data=combined_df, x='Scenario', y='dispatch', palette="coolwarm", medianprops={'color': 'red', 'linewidth': 2}, ax=ax)
+        elif plot_type == 'violin':
+            sns.violinplot(data=combined_df, x='Scenario', y='dispatch', palette="coolwarm", bw=0.2, ax=ax)
+        
+        # Set title for the subplot
+        ax.set_title(f"Year: {year}")
 
-        # Plot each year separately for comparison
-        for year in monthly_avg['year'].unique():
-            year_data = monthly_avg[monthly_avg['year'] == year]
-            axes[i].plot(
-                year_data['month'], year_data['Pc'], label=f'{year} - Charging Avg',
-                color='blue', linestyle='--', marker='o', alpha=0.7
-            )
-            axes[i].plot(
-                year_data['month'], year_data['Pd'], label=f'{year} - Discharging Avg',
-                color='red', linestyle='--', marker='o', alpha=0.7
-            )
+        # Set the y-axis label only for the leftmost plots
+        if idx % 3 == 0:  # Leftmost column
+            ax.set_ylabel("Dispatch Power (MW)")
+        else:
+            ax.set_ylabel("")  # Empty y-label for other plots
 
-        # Titles and labels
-        axes[i].set_title(f'{scenario} - Monthly Average Charging and Discharging Dispatch')
-        axes[i].set_ylabel('Average Dispatch Power (MWh)')
-        axes[i].set_xlabel('Month')
-        axes[i].legend()
+        # Set the x-axis label only for the bottom row
+        if idx >= 6:  # Bottom row
+            ax.set_xlabel("Tariff Scenarios")
+        else:
+            ax.set_xlabel("")  # Empty x-label for other plots
+    
+    # Hide any extra subplots if there are less than 9 years
+    for j in range(num_years, len(axes)):
+        axes[j].axis('off')
 
+    # Adjust layout and save the figure
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, f'DISPATCH_DISTRIBUTION_grid_{plot_type}.jpg'), dpi=450)
+
+    return None
+
+
+def plot_monthly_average_dispatch(storage_results, output_dir_plot, scenario_cases, params):
+    """
+    Plot monthly averages of dispatch (charging and discharging) for different scenarios based on hourly data.
+    
+    Parameters:
+    - storage_results (dict): Dictionary where keys are scenario names and values are DataFrames with dispatch data.
+    - output_dir_plot (str): Directory to save the plot.
+    - scenario_cases (list): List of scenario names.
+    - params (dict): Dictionary with scenario parameters for labels.
+    
+    Each DataFrame in storage_results should include:
+    - 'dispatch': Dispatch power data.
+    - 'hour': Hour of the year (0 to 8759).
+    
+    Returns:
+    - None. Displays and saves the plot.
+    """
+    
+    plt.figure(figsize=(14, 8))
+    
+    for scenario_name in scenario_cases:
+        data = storage_results[scenario_name]
+        data = data[data['year'] == 2021]
+        
+        
+        # Calculate the month based on hour (approximate; assumes 30.4 days per month)
+        data['month'] = (data['hour'] // (8760 // 12) + 1).astype(int)
+        
+        # Calculate monthly average dispatch
+        monthly_avg_dispatch = data.groupby('month')['dispatch'].mean()
+        
+        # Retrieve the scenario label for the plot legend
+        scenario_label = params[scenario_name]['global']['tariff']['shape']
+        
+        # Plot the monthly average for this scenario
+        plt.plot(monthly_avg_dispatch.index, monthly_avg_dispatch.values, marker='o', label=scenario_label)
+    
+    # Set plot labels and title
+    plt.xlabel("Month")
+    plt.ylabel("Average Dispatch Power (MW)")
+    plt.title("Monthly Average Dispatch Trends Across Scenarios")
+    plt.xticks(range(1, 13), ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])
+    plt.legend(title="Scenarios")
+    plt.grid(True)
+
+    # Save the plot
+    plt.savefig(os.path.join(output_dir_plot, 'MONTLY_AVERAGE_DISPATCH.jpg'), dpi=400)
+    return None
+
+
+def plot_monthly_average_dispatch(storage_results, output_dir_plot, scenario_cases, params):
+    """
+    Plot monthly averages of dispatch (charging and discharging) for different scenarios based on hourly data.
+    Displays each year in a 3x3 subplot grid.
+    
+    Parameters:
+    - storage_results (dict): Dictionary where keys are scenario names and values are DataFrames with dispatch data.
+    - output_dir_plot (str): Directory to save the plot.
+    - scenario_cases (list): List of scenario names.
+    - params (dict): Dictionary with scenario parameters for labels.
+    
+    Each DataFrame in storage_results should include:
+    - 'dispatch': Dispatch power data.
+    - 'hour': Hour of the year (0 to 8759).
+    - 'year': The year of the data (e.g., 2015, 2016).
+    
+    Returns:
+    - None. Displays and saves the plot.
+    """
+    
+    years = sorted(storage_results[scenario_cases[0]]['year'].unique())  # Unique years in the data
+    fig, axes = plt.subplots(3, 3, figsize=(18, 14), sharex=True, sharey=True)
+    fig.suptitle("Monthly Average Dispatch Trends by Year Across Scenarios", fontsize=16)
+
+    for i, year in enumerate(years):
+        row, col = divmod(i, 3)  # Determine row and column for 3x3 subplot grid
+        ax = axes[row, col]
+
+        for scenario_name in scenario_cases:
+            data = storage_results[scenario_name]
+            data_year = data[data['year'] == year]
+
+            # Calculate the month based on hour (approximate; assumes 30.4 days per month)
+            data_year['month'] = (data_year['hour'] // (8760 // 12) + 1).astype(int)
+
+            # Calculate monthly average dispatch
+            monthly_avg_dispatch = data_year.groupby('month')['dispatch'].mean()
+
+            # Retrieve the scenario label for the plot legend
+            scenario_label = params[scenario_name]['global']['tariff']['shape']
+
+            # Plot the monthly average for this scenario
+            ax.plot(monthly_avg_dispatch.index, monthly_avg_dispatch.values, marker='o', label=scenario_label)
+
+        # Set subplot title and labels
+        ax.set_title(f"Year {year}")
+        ax.set_xticks(range(1, 13))
+        ax.set_xticklabels(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])
+        ax.grid(True)
+
+    # Set common labels
+    fig.text(0.5, 0.04, 'Month', ha='center', fontsize=12)
+    fig.text(0.04, 0.5, 'Average Dispatch Power (MW)', va='center', rotation='vertical', fontsize=12)
+
+    # Add a single legend for all subplots
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles, labels, loc='upper center', ncol=len(scenario_cases), title="Scenarios")
+
+    # Adjust layout and save the plot
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.savefig(os.path.join(output_dir_plot, f'MONTHLY_AVERAGE_DISPATCH.jpg'), dpi=400)
+    plt.savefig(os.path.join(output_dir_plot, 'MONTLY_AVERAGE_DISPATCH_3x3.jpg'), dpi=400)
+    return None
 
 
 
@@ -1151,7 +1331,7 @@ def plotNetloadRevenue_line(df):
 
 
 def plotNetloadRevenue_line_2(df):
-    last_three_years = sorted(df['year'].unique())[-4:]
+    last_three_years = sorted(df['year'].unique())[-9:]
     filtered_df = df[df['year'].isin(last_three_years)]
     fig = px.line(filtered_df, x='net_load', y='revenue', color='year', facet_col="scenario", labels={'net_load': 'Net load (MW)', 'revenue': 'Revenue (EUR/h)'}, template="simple_white", width=960, height=600)
     return fig
@@ -1288,7 +1468,7 @@ def plot_revenue_comparison_ok(STORAGE_RESULT, params, output_dir_plot):
 
 
 
-def plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot):
+def plot_energy_comparison_1(STORAGE_RESULT, params, output_dir_plot):
     alpha = 0.85
     # Get all unique shapes (tariff designs)
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
@@ -1391,8 +1571,122 @@ def plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot):
     plt.close(fig)
 
 
+def plot_energy_comparison(STORAGE_RESULT, params, output_dir_plot):
+    alpha = 0.85
+    # Get all unique shapes (tariff designs)
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#ff7f0e', '#1f77b4']  # Color for energy stored and energy discharged
+    hatches = ['///', '\\\\']  # Hatching patterns
+    bar_width = 0.3  # Reduced bar width for less clutter
 
+    fig, ax = plt.subplots(figsize=(9, 6))  # Adjusted figure size for readability
     
+    for spine in ax.spines.values():
+        spine.set_edgecolor('black')
+        spine.set_linewidth(1.5)
+
+    shape_idx = 0
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
+
+    # Variables to store the average energy stored and discharged for each tariff design
+    avg_energy_stored_per_shape = []
+    avg_energy_discharged_per_shape = []
+
+    for shape in shapes:
+        total_energy_stored = []
+        total_energy_discharged = []
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate total energy stored (charging) and energy discharged (discharging)
+                energy_stored = abs(df_delta[df_delta['dispatch'] < 0]['dispatch'].sum())
+                energy_discharged = abs(df_delta[df_delta['dispatch'] > 0]['dispatch'].sum())
+                
+                # Store the results
+                total_energy_stored.append(energy_stored)
+                total_energy_discharged.append(energy_discharged)
+
+        # Convert lists to numpy arrays for easy bar plotting
+        total_energy_stored = np.array(total_energy_stored)
+        total_energy_discharged = np.array(total_energy_discharged)
+
+        # Indices for the bars
+        index = np.arange(len(total_energy_stored))
+
+        # Offset for the group of bars, with spacing between scenarios
+        offset = shape_idx * bar_width * 4  # Extra spacing between groups of scenarios
+
+        # Plot bars for energy stored (charging)
+        bars1_solid = ax.bar(index + offset, total_energy_stored, bar_width, color='none', edgecolor='black',
+                       label='Energy Stored' if shape_idx == 0 else "", alpha=alpha)
+        
+        bars1_hatch = ax.bar(index + offset, total_energy_stored, bar_width, color='none', edgecolor=colors[0],
+                             hatch=hatches[0], linewidth=0, alpha=1)
+
+        # Plot bars for energy discharged (discharging)
+        bars2_solid = ax.bar(index + offset + bar_width, total_energy_discharged, bar_width, color='none', edgecolor='black',
+                       label='Energy Discharged' if shape_idx == 0 else "", alpha=alpha)
+        
+        bars2_hatch = ax.bar(index + offset + bar_width, total_energy_discharged, bar_width, color='none', edgecolor=colors[1],
+                             hatch=hatches[1], linewidth=0, alpha=1)
+
+        # Annotate each bar with its value above it, formatted in American style
+        for bar in bars1_solid:
+            ax.annotate(f'{bar.get_height():,.0f}',  # Add comma for thousands separator
+                        xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()), 
+                        xytext=(0, 5),  # Adjust space above the bar
+                        textcoords="offset points",
+                        ha='center', va='bottom', fontsize=9, color=colors[0])
+        
+        for bar in bars2_solid:
+            ax.annotate(f'{bar.get_height():,.0f}',  # Add comma for thousands separator
+                        xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()), 
+                        xytext=(0, 5),  # Adjust space above the bar
+                        textcoords="offset points",
+                        ha='center', va='bottom', fontsize=9, color=colors[1])
+
+        # Store average energy stored and discharged for the current tariff design
+        avg_energy_stored_per_shape.append(np.mean(total_energy_stored))
+        avg_energy_discharged_per_shape.append(np.mean(total_energy_discharged))
+
+        # Add shape labels
+        shapes_labels.extend([f'{shape}'])
+        num_scenarios_per_shape.append(len(total_energy_stored))
+        shape_idx += 1
+
+    # Adjust y-axis to start at 4.10e5 for clearer comparison
+    ax.set_ylim(4.10e5, None)
+    
+    # Adjust tick positions and labels
+    total_bars = sum(num_scenarios_per_shape)
+    ticks_positions = np.arange(total_bars) * bar_width * 4 + bar_width / 2
+    ax.set_xticks(ticks_positions)
+    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)
+
+    ax.set_xlabel('Tariff Designs', fontsize=12)
+    ax.set_ylabel('Total Energy (MWh)', fontsize=12)
+    ax.ticklabel_format(axis='y', style='sci', scilimits=(0,0))
+    
+    # Plot trend lines for average energy stored and discharged
+    trend_line_x_position_1 = np.arange(len(shapes)) * bar_width * 4 
+    trend_line_x_position_2 = np.arange(len(shapes)) * bar_width * 4 + bar_width
+    
+    ax.plot(trend_line_x_position_1, avg_energy_stored_per_shape, marker='o', linestyle='-', color=colors[0], 
+            label='Trend: Energy Stored')
+    
+    ax.plot(trend_line_x_position_2, avg_energy_discharged_per_shape, marker='o', linestyle='-', color=colors[1], 
+            label='Trend: Energy Discharged')
+
+    # Move the legend to the bottom
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=12)
+    ax.grid(False)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to leave space for the legend
+    plt.savefig(os.path.join(output_dir_plot, "energy_comparison_with_trend.png"), dpi=600)
+    plt.close(fig)
+    
+        
     
 def plot_energy_comparison_OK(STORAGE_RESULT, params, output_dir_plot):
     alpha = 0.85
@@ -1553,14 +1847,14 @@ def plot_energy_comparison_ok(STORAGE_RESULT, params, output_dir_plot):
     
     
     
-def plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
+def plot_revenue_comparison_02_11(STORAGE_RESULT, params, output_dir_plot):
     alpha = 0.85
     # Get all unique shapes
     shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
     colors = ['#ff7f0e', '#1f77b4', 'grey']  # Colors for Tariff Revenue, Market Revenue, and Std Dev of Total Revenue
     bar_width = 0.2  # Adjusted for smaller bars
 
-    fig, ax = plt.subplots(figsize=(12, 8))  # Increased figure size for better readability
+    fig, ax = plt.subplots(figsize=(9, 6))  # Increased figure size for better readability
 
     shape_idx = 0
     shapes_labels = []  # To store shape labels
@@ -1624,6 +1918,98 @@ def plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
         for bar in bars3:
             height = bar.get_height()
             ax.annotate(f'{height:.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+
+        # Add shape labels
+        shapes_labels.extend([f'{shape}'])
+        num_scenarios_per_shape.append(len(average_market_revenues))
+        shape_idx += 1
+
+    # Adjust tick positions and labels
+    total_bars = sum(num_scenarios_per_shape)
+    ticks_positions = np.arange(total_bars) * (bar_width * 3 + gap) + bar_width / 2
+    ax.set_xticks(ticks_positions)
+    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)  # Increase tick label size
+
+    ax.set_xlabel('Shapes', fontsize=12)  # Increase x-axis label size
+    ax.set_ylabel('Revenue (EUR/y)', fontsize=12)  # Increase y-axis label size
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fontsize=10)  # Increase legend size
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "revenue_comparison.jpg"), dpi=600)
+    
+
+def plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
+    alpha = 0.85
+    # Get all unique shapes
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#ff7f0e', '#1f77b4', 'grey']  # Colors for Tariff Revenue, Market Revenue, and Std Dev of Total Revenue
+    bar_width = 0.2  # Adjusted for smaller bars
+
+    fig, ax = plt.subplots(figsize=(9, 6))  # Increased figure size for better readability
+
+    shape_idx = 0
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
+
+    for shape in shapes:
+        average_market_revenues = []
+        average_tariff_revenues = []
+        average_total_revenues = []
+        std_total_revenues = []
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate revenues
+                df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
+                df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
+
+                # Calculate annual revenues
+                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum()
+                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum()
+                total_revenue = annual_market_revenue + annual_tariff_revenue
+
+                # Store values
+                average_market_revenues.append(annual_market_revenue.mean())
+                average_tariff_revenues.append(annual_tariff_revenue.mean())
+                average_total_revenues.append(total_revenue.mean())
+                std_total_revenues.append(total_revenue.std())
+
+        # Convert lists to numpy arrays
+        average_market_revenues = np.array(average_market_revenues)
+        average_tariff_revenues = np.array(average_tariff_revenues)
+        average_total_revenues = np.array(average_total_revenues)
+        std_total_revenues = np.array(std_total_revenues)
+
+        # Indices for the bars
+        index = np.arange(len(average_market_revenues))
+        gap = 0.1  # Gap between groups
+        offset = shape_idx * (bar_width * 3 + gap)  # Added gap between groups
+
+        # Plot stacked bars for tariff and market revenues with hatching
+        bars1 = ax.bar(index + offset, average_tariff_revenues, bar_width, color=colors[0], edgecolor='black', 
+                       label='Tariff-based revenue' if shape_idx == 0 else "", alpha=alpha, hatch='/')
+        bars2 = ax.bar(index + offset, average_market_revenues, bar_width, bottom=average_tariff_revenues, color=colors[1], 
+                       edgecolor='black', label='Energy market revenue' if shape_idx == 0 else "", alpha=alpha, hatch='\\')
+
+        # Plot bars for standard deviation of total revenue with hatching
+        bars3 = ax.bar(index + offset + bar_width, std_total_revenues, bar_width, color=colors[2], edgecolor='black', 
+                       label='Std Dev of Total Revenue' if shape_idx == 0 else "", alpha=alpha, hatch='.')
+
+        # Add annotations for revenues
+        for bar in bars1:
+            height = bar.get_height()
+            ax.annotate(f'{height:,.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+        for bar1, bar2 in zip(bars1, bars2):
+            height1 = bar1.get_height()
+            height2 = bar2.get_height()
+            total_height = height1 + height2
+            ax.annotate(f'{height2:,.2f}', xy=(bar2.get_x() + bar2.get_width() / 2, total_height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+        for bar in bars3:
+            height = bar.get_height()
+            ax.annotate(f'{height:,.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), 
                         textcoords="offset points", ha='center', va='bottom', fontsize=8)
 
         # Add shape labels
