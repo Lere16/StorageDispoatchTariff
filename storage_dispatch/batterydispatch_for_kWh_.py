@@ -133,13 +133,17 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     
     #limit net load to the network limit capacity
     
+    #
     # Calculate net load
     
-    total_load = Variable(bat, 'total_load', domain=[t], type='free')
-    deftotalload = Equation(bat, name="deftotalload", domain=[t])
+    if configuration == "ex-post":
     
-    deftotalload[t] = total_load[t] == gridload[t] + Pc[t]
-    total_load.up[t]=cap_limit
+        total_load = Variable(bat, 'total_load', domain=[t], type='free')
+        deftotalload = Equation(bat, name="deftotalload", domain=[t])
+        
+        deftotalload[t] = total_load[t] == gridload[t] + Pc[t]
+        total_load.up[t]=cap_limit
+    
     
     
     
