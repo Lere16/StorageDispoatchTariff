@@ -17,7 +17,7 @@ from results_analysis import (plotStorageDispatchCases,
 
 
 # read storage dispatch scenarios
-SCENARIO_LIST = list(range(1, 30))
+SCENARIO_LIST = list(range(1, 30)) 
 SCENARIOS, params = readStorageDispatchScenario(SCENARIO_LIST)
 
 #Read price load, and base_tariff

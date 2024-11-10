@@ -136,6 +136,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     #
     # Calculate net load
     
+    ''' 
     if configuration == "ex-post":
     
         total_load = Variable(bat, 'total_load', domain=[t], type='free')
@@ -144,7 +145,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         deftotalload[t] = total_load[t] == gridload[t] + Pc[t]
         total_load.up[t]=cap_limit
     
-    
+    '''
     
     
     #avoid negative net load
