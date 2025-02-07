@@ -1,7 +1,8 @@
 import os
 import settings
 import pandas as pd
-from storage_dispatch.batterydispatch_for_kWh_ import bat_optimize_
+#from storage_dispatch.batterydispatch_for_kWh_ import bat_optimize_
+from storage_dispatch.batterydispatch_for_kWh_2 import bat_optimize_
 
 def readStorageDispatchScenario(SCENARIO_LIST):
     # Set scenario path

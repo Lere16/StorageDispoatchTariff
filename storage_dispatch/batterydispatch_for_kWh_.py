@@ -10,7 +10,7 @@ from gamspy import (
     Sum,
     Ord,
 )
-from gamspy.math import exp, abs
+from gamspy.math import exp, abs, sign
 import pandas as pd
 import numpy as np
 import os
@@ -113,7 +113,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     # Calculate net load 
     net_load = Variable(bat, 'net_load', domain=[t], type='Positive')
     defnetload = Equation(bat, name="netload", domain=[t])
-    gridload = Parameter(bat, 'gridload', domain=[t], records= df_load["Day-ahead Total Load Forecast [MW]"])
+    gridload = Parameter(bat, 'gridload', domain=[t], records= df_load["Day-ahead Total Load Forecast [MW]"]) # replace with actual residual loads 
     
     nodal_load = df_load["Day-ahead Total Load Forecast [MW]"]
     
@@ -127,13 +127,11 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     tariff_level = Variable(bat, 'tarrif_level', domain=[t], type='Positive')
     
     #Initilaize cap_limit and cap_threshold for info dictionnary 
-    cap_limit = 1.2*nodal_load.max(axis=0)
-    cap_threshold = (1-delta)*nodal_load.max(axis=0)
+    cap_limit = 1.2*nodal_load.max(axis=0) #manage to exact cap_limit
+    cap_threshold = (1-delta)*nodal_load.max(axis=0) 
     
     
     #limit net load to the network limit capacity
-    
-    #
     # Calculate net load
     
     ''' 
@@ -148,8 +146,8 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     '''
     
     
-    #avoid negative net load
-    load_injection = Variable(bat, 'load_injection', domain=[t], type='free')
+    #avoid negative net load # NOT NEEDED because of negative residual load
+    load_injection = Variable(bat, 'load_injection', domain=[t], type='free') 
     defload_injection = Equation(bat, name="defload_injection", domain=[t])
     defload_injection[t] = load_injection[t] == gridload[t] - Pd[t]
     load_injection.lo[t]=0
