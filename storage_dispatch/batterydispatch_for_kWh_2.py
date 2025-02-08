@@ -73,7 +73,8 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
 
     # WITHOUT Tariff functions 
     t=Set(bat, name = "t", records = price_table.t.tolist(), description = " hours")
-    P=Parameter(bat,"P", domain=[t], records=price_table['Day-ahead Price [EUR/MWh]'], description="Day ahead Price")
+    #P=Parameter(bat,"P", domain=[t], records=price_table['Day-ahead Price [EUR/MWh]'], description="Day ahead Price")
+    P=Parameter(bat,"P", domain=[t], records=price_table['DE_LU'], description="Day ahead Price")
     
     # Variables
     SOC = Variable(bat, name="SOC", type="free", domain=t)
@@ -123,11 +124,12 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     
     
     # Calculate net load 
-    net_load = Variable(bat, 'net_load', domain=[t], type='Positive')
+    net_load = Variable(bat, 'net_load', domain=[t], type='free')
     defnetload = Equation(bat, name="netload", domain=[t])
-    gridload = Parameter(bat, 'gridload', domain=[t], records= df_load["Day-ahead Total Load Forecast [MW]"]) # replace with actual residual loads 
+    #gridload = Parameter(bat, 'gridload', domain=[t], records= df_load["Day-ahead Total Load Forecast [MW]"]) # replace with actual residual loads 
+    gridload = Parameter(bat, 'gridload', domain=[t], records= df_load["Residual load [MWh]"])
     
-    nodal_load = df_load["Day-ahead Total Load Forecast [MW]"]
+    nodal_load = df_load["Residual load [MWh]"]
     
     if configuration == "ex-post":
         defnetload[t] = net_load[t] == gridload[t] + Pc[t] - Pd[t]
@@ -136,34 +138,11 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
 
     
     # WITH tariff functions
-    tariff_level = Variable(bat, 'tarrif_level', domain=[t], type='Positive')
+    tariff_level = Variable(bat, 'tarrif_level', domain=[t], type='free')
     
     #Initilaize cap_limit and cap_threshold for info dictionnary 
     cap_limit = 1.2*nodal_load.max(axis=0) #manage to exact cap_limit
     cap_threshold = (1-delta)*nodal_load.max(axis=0) 
-    
-    
-    #limit net load to the network limit capacity
-    # Calculate net load
-    
-    ''' 
-    if configuration == "ex-post":
-    
-        total_load = Variable(bat, 'total_load', domain=[t], type='free')
-        deftotalload = Equation(bat, name="deftotalload", domain=[t])
-        
-        deftotalload[t] = total_load[t] == gridload[t] + Pc[t]
-        total_load.up[t]=cap_limit
-    
-    '''
-    
-    
-    #avoid negative net load # NOT NEEDED because of negative residual load
-    load_injection = Variable(bat, 'load_injection', domain=[t], type='free') 
-    defload_injection = Equation(bat, name="defload_injection", domain=[t])
-    defload_injection[t] = load_injection[t] == gridload[t] - Pd[t]
-    load_injection.lo[t]=0
-    
     
     if tariff_status == 'on':
         
@@ -175,9 +154,61 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     
 
         if shape == "flat":
-            defy = Equation(bat, name="defy", domain=[t])
-            defy[t]= tariff_level[t]== sign(gridload[t])*EUR_base
-            #defy[t]= tariff_level[t] == Number(-EUR_base).where[net_load.l[t] < 0] + Number(-EUR_base).where[net_load.l[t] > 0]
+            
+            #tariff_level.fx[t]= EUR_base
+            define_tariff_level = Equation(bat, name="define_tariff_level", domain=[t])
+            
+            is_positive = Variable(bat, 'is_positive', domain=[t], type='binary')
+            link_positiveL = Equation(bat, name="link_positiveL", domain=[t])
+            link_positiveG = Equation(bat, name="link_positiveG", domain=[t])
+            link_positiveL[t] = net_load[t] <= 1e5 * is_positive[t]
+            link_positiveG[t] = net_load[t] >= -1e5 * (1 - is_positive[t])
+            define_tariff_level[t] = tariff_level[t] == (2 * is_positive[t] - 1)* EUR_base
+            
+            ''' 
+            slack_pos = Variable(bat, 'slack_pos', domain=[t], type='Positive')
+            slack_neg = Variable(bat, 'slack_neg', domain=[t], type='Positive')
+            tariff_upper_bound =  Equation(bat, name="tariff_upper_bound", domain=[t])
+            tariff_lower_bound = Equation(bat, name="tariff_lower_bound", domain=[t])
+            slack_relation = Equation(bat, name="slack_relation", domain=[t])
+            defslack_pos = Equation(bat, name="defslack_pos", domain=[t])
+            defslack_neg = Equation(bat, name="defslack_neg", domain=[t])
+            
+            tariff_upper_bound[t] = tariff_level[t] >= -EUR_base + slack_pos[t]
+            tariff_lower_bound[t] = tariff_level[t] <= EUR_base - slack_neg[t]
+            slack_relation[t] = slack_pos[t] + slack_neg[t] == 100
+            defslack_pos[t] = slack_pos[t] >= -net_load[t]
+            defslack_neg[t] = slack_neg[t] >= net_load[t]
+            ''' 
+            
+            ''' 
+            net_load_positive = Variable(bat, 'net_load_positive', domain=[t], type='Positive')
+            net_load_negative = Variable(bat, 'net_load_negative', domain=[t], type='Positive')
+            define_net_load = Equation(bat, name="define_net_load", domain=[t])
+            define_tariff_level = Equation(bat, name="define_tariff_level", domain=[t])
+            define_unique_null = Equation(bat, name="define_unique_null", domain=[t])
+            
+            define_net_load[t] = net_load[t] == net_load_positive[t] - net_load_negative[t]
+            
+            define_tariff_level[t] = tariff_level[t] == EUR_base * net_load_positive[t] - EUR_base * net_load_negative[t]
+            
+            net_load_positive.lo[t] = 100
+            net_load_negative.lo[t] = 100
+            define_unique_null[t] = net_load_positive[t]*net_load_negative[t] == 0
+            '''
+            
+            
+            
+            
+            
+        elif shape== "proportional":
+            deftariff = Equation(bat, name="deftariff", domain=[t])
+            #calculate slope 
+            y = nodal_load.values
+            slope= EUR_base*share*(np.sum(y))/np.sum(np.power(y, 2))
+            
+            deftariff[t] = tariff_level[t] == slope*net_load[t]+EUR_base*(1-share)
+            
         
         elif shape == "piecewise":
     
@@ -188,7 +219,8 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
             x4 = cap_limit
             
             
-            y1 = -EUR_high #should change EUR_base * (1 - share)
+            y1 = -EUR_high  #-EUR_high #should change -EUR_base * (1 - share)
+            
             y2 = EUR_base
             y3 = EUR_base
             
@@ -200,7 +232,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
             sy = Parameter(bat, 'sy', domain=[s], records=[ ['s1',y1], ['s2',y2*(1-share)], ['s3',y3*(1-share)]])
             sslope = Parameter(bat, 'sslope', domain=[s])
             
-            sslope['s1'] = (-1)*calculate_slope(nodal_load, x3)*EUR_base*share #change 
+            sslope['s1'] = calculate_slope(nodal_load, x3)*EUR_base*share #change 
             sslope['s2'] = (y3-y2)*(1-share)/(x3-x2)
             sslope['s3'] = calculate_slope(nodal_load, x3)*EUR_base*share
             
@@ -220,15 +252,6 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
             defy[t] = tariff_level[t] == Sum(s, sy[s]*sselect[t,s] + sstep[t,s]*sslope[s])
             defx[t] = net_load[t] == Sum(s, sx[s]*sselect[t,s] + sstep[t,s])
             defslope[t,s] = sstep[t,s] <= sstep.up[t,s]*sselect[t,s] 
-            
-                    
-        elif shape== "proportional":
-            deftariff = Equation(bat, name="deftariff", domain=[t])
-            #calculate slope 
-            y = nodal_load.values
-            slope= EUR_base*share*(np.sum(y))/np.sum(np.power(y, 2))
-            
-            deftariff[t] = tariff_level[t] == slope*net_load[t]+EUR_base*(1-share)
             
             
 
@@ -259,7 +282,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         )
     
      
-    opt.solve(solver="CPLEX", solver_options={'optimalitytarget': 3, 'subalg': 4, 'mipdisplay': 5, 'mipgap':0.03,'timelimit': 1800, 'mipemphasis': 3, 'threads': 8}, ) # output=sys.stdout
+    opt.solve(solver="CPLEX", solver_options={'optimalitytarget': 3, 'subalg': 4, 'mipdisplay': 5, 'mipgap':0.03,'timelimit': 1800, 'mipemphasis': 3, 'threads': 32}, ) # output=sys.stdout
     #reporting data and parameters 
     rep = Parameter(bat, name="rep", domain=[t, "*"])
     rep[t, "Pc"] = Pc.l[t]

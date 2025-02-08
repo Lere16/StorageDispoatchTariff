@@ -18,11 +18,11 @@ global:network:base_tariff,1.76E+01,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 global:tariff:configuration,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-post,ex-ante,ex-post,ex-ante,ex-post,,,,,,,,,,,,,,,,,
 global:tariff:delta,5.00E-02,,,,5.00E-02,1.00E-01,1.50E-01,2.00E-01,2.50E-01,3.00E-01,3.50E-01,4.00E-01,4.50E-01,1.00E-01,,,,,,,,,,,,5.00E-02,,,,0.00E+00,0.00E+00,6.00E-02,5.00E-03,2.60E-02,1.40E-01,1.80E-01,2.20E-01,0.00E+00,0.00E+00,0.00E+00,0.00E+00,0.00E+00,0.00E+00,6.00E-02,6.00E-02,6.00E-02
 global:tariff:shape,without_tariff,flat,proportional,piecewise,piecewise,piecewise,piecewise,piecewise,piecewise,piecewise,piecewise,piecewise,piecewise,proportional,proportional,proportional,proportional,proportional,proportional,piecewise,piecewise,piecewise,piecewise,piecewise,piecewise,proportional,proportional,piecewise,piecewise,flat,proportional,piecewise,piecewise,piecewise,piecewise,piecewise,piecewise,flat,flat,flat,proportional,proportional,proportional,piecewise,piecewise,piecewise
-global:tariff:share,0.4,0.4,0.4,0.4,0.6,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.5,0.6,0.7,0.8,0.9,0.4,0.5,0.6,0.7,0.8,0.9,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4
+global:tariff:share,0.6,0.6,0.6,0.6,0.6,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.5,0.6,0.7,0.8,0.9,0.4,0.5,0.6,0.7,0.8,0.9,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4,0.4
 global:config:scenario_descriptor,comparison,,,,sensitivity,,,,,,,,,sensitivity,,,,,,,,,,,,configuration,,,,max_invest,,,,,,,,,,,,,,,,
 global:config:start,2015,,,,2015,,,,,,,,,2015,,,,,,,,,,,,2023,,,,2014,,,,,,,,,,,,,,,,
 global:config:end,2023,,,,2023,,,,,,,,,2023,,,,,,,,,,,,2023,,,,2023,,,,,,,,,,,,,,,,
 global:tariff:tariff_status,off,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on,on
 global:plot:year_plot,2023,,,,2023,,,,,,,,,2023,,,,,,,,,,,,2023,,,,2023,,,,,,,,,,,,,,,,
-global:plot:start_hour,24,,,,150,,,,,,,,,150,,,,,,,,,,,,0,,,,150,,,,,,,,,,,,,,,,
-global:plot:end_hour,48,,,,350,,,,,,,,,350,,,,,,,,,,,,167,,,,350,,,,,,,,,,,,,,,,
+global:plot:start_hour,100,,,,150,,,,,,,,,150,,,,,,,,,,,,0,,,,150,,,,,,,,,,,,,,,,
+global:plot:end_hour,350,,,,350,,,,,,,,,350,,,,,,,,,,,,167,,,,350,,,,,,,,,,,,,,,,

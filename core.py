@@ -15,7 +15,26 @@ def readStorageDispatchScenario(SCENARIO_LIST):
 
     return SCENARIOS, params
 
-def readLoadPrice():
+def readLoadPrice(load_file, price_file):
+    # Set scenario path
+    DATA_PATH=os.path.join(os.path.dirname(__file__),"data", "input")
+    LOAD_FILE = os.path.join(DATA_PATH, str(load_file)+".csv")
+    LOAD_PRICE_FILE = os.path.join(DATA_PATH, str(price_file)+".csv")
+    
+    # Read CSV files
+    load_df = pd.read_csv(LOAD_FILE)
+    price_df = pd.read_csv(LOAD_PRICE_FILE)
+    
+    load_df['year'] = load_df['Start date'].str.split('/').str[-1].str[:4].astype(int)
+    price_df['year'] = price_df['Start date'].str.split('/').str[-1].str[:4].astype(int)
+
+    # Create "t" as the time step within each year
+    load_df['t'] = load_df.groupby('year').cumcount()
+    price_df['t'] = price_df.groupby('year').cumcount()
+    
+    return load_df, price_df
+
+def readLoadPrice_odl(load_file, price_file):
     # Set scenario path
     DATA_PATH=os.path.join(os.path.dirname(__file__),"data", "input")
     LOAD_FILE = os.path.join(DATA_PATH, "compiled_load.csv")
@@ -33,6 +52,7 @@ def readLoadPrice():
     price_df['t'] = price_df.groupby('year').cumcount()
     
     return load_df, price_df
+
     
         
 

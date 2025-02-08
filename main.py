@@ -20,13 +20,35 @@ from results_analysis import (plotStorageDispatchCases,
 SCENARIO_LIST = list(range(1, 30)) 
 SCENARIOS, params = readStorageDispatchScenario(SCENARIO_LIST)
 
-#Read price load, and base_tariff
-DF_LOAD, DF_PRICE = readLoadPrice()
 base_tariff = float(params['scenario_1']['global']['network']['base_tariff'])
+
+#Read price load, Germany
+load_file = "actual_consumption"
+price_file = "day_ahead_prices"
+DF_LOAD, DF_PRICE = readLoadPrice(load_file, price_file)
+
+
+#Read price load, and base_tariff 
+load_file_50Hertz = "actual_consumption_50Hertz"
+price_file = "day_ahead_prices"
+DF_LOAD_50Hertz, DF_PRICE = readLoadPrice(load_file_50Hertz, price_file)
+
+#Read price load, and base_tariff 
+load_file_Amprion = "actual_consumption_Amprion"
+price_file = "day_ahead_prices"
+DF_LOAD_Amprion, DF_PRICE = readLoadPrice(load_file_Amprion, price_file)
+
+load_file_TenneT = "actual_consumption_TenneT"
+price_file = "day_ahead_prices"
+DF_LOAD_TenneT, DF_PRICE = readLoadPrice(load_file_TenneT, price_file)
+
+load_file_TransnetBW = "actual_consumption_TransnetBW"
+price_file = "day_ahead_prices"
+DF_LOAD_TransnetBW, DF_PRICE = readLoadPrice(load_file_TransnetBW, price_file)
+
 
 #Data analysis 
 #plotdataAnalysis(DF_LOAD, DF_PRICE)
-
 
 #Step1: compare storage dispatch for each tarifs design 
 print("STEP 1 : STORAGE DISPATCH INCLUDING TARIFF SIGNALS")
@@ -36,8 +58,12 @@ selected_years = ["2015","2016","2017","2018", "2019","2020", "2021", "2022", "2
 # Run storage dispatch for base cases:
 #Plot hourly storage dispatch for base cases
 #Plot comparison storage dispatch vs price (base_price+ tariff).
-STORAGE_RESULT = runStorageDispatchCases(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD)
+
+STORAGE_RESULT = runStorageDispatchCases(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD_Amprion)
 plotStorageDispatchCases(scenario_cases, STORAGE_RESULT, selected_years, params)
+
+
+
 
 pass 
 
