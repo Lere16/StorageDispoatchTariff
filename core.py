@@ -2,7 +2,7 @@ import os
 import settings
 import pandas as pd
 #from storage_dispatch.batterydispatch_for_kWh_ import bat_optimize_
-from storage_dispatch.batterydispatch_for_kWh_2 import bat_optimize_
+from storage_dispatch.batterydispatch import bat_optimize_
 
 def readStorageDispatchScenario(SCENARIO_LIST):
     # Set scenario path
@@ -15,11 +15,11 @@ def readStorageDispatchScenario(SCENARIO_LIST):
 
     return SCENARIOS, params
 
-def readLoadPrice(load_file, price_file):
+def readLoadPrice(area):
     # Set scenario path
     DATA_PATH=os.path.join(os.path.dirname(__file__),"data", "input")
-    LOAD_FILE = os.path.join(DATA_PATH, str(load_file)+".csv")
-    LOAD_PRICE_FILE = os.path.join(DATA_PATH, str(price_file)+".csv")
+    LOAD_FILE = os.path.join(DATA_PATH, "actual_consumption_"+str(area)+".csv")
+    LOAD_PRICE_FILE = os.path.join(DATA_PATH, "day_ahead_prices.csv")
     
     # Read CSV files
     load_df = pd.read_csv(LOAD_FILE)
@@ -54,9 +54,6 @@ def readLoadPrice_odl(load_file, price_file):
     return load_df, price_df
 
     
-        
-
-
 def runStorageDispatchCases(params, scenario_cases, SHADOW_PRICE, base_tariff, DF_LOAD):
     
     start = int(params['scenario_1']['global']['config']['start']) # start year for horizon simualtion
@@ -226,8 +223,11 @@ def runStorageConfiguration(params, scenario_cases, SHADOW_PRICE, base_tariff, D
             current_data = storage_dispatch.info["data"]
             current_data["total_demand"]=current_data["gridload"]+current_data["Pc"]
             current_data["dispatch_load"]=current_data["gridload"]+current_data["Pc"]-current_data["Pd"]
+            #current_data["dispatch_load"]=current_data["net_load"]
+            
+            
             current_data["injection_load"]=current_data["gridload"] - current_data["Pd"]
-            current_data['Pc'] = current_data['Pc'] * (-1)
+            #current_data['Pc'] = current_data['Pc'] * (-1)
             current_data['year'] = year
             current_data['capacity limit'] = storage_dispatch.info["capacity limit"]
             current_data['capacity threshold'] = storage_dispatch.info["capacity threshold"]
@@ -235,7 +235,7 @@ def runStorageConfiguration(params, scenario_cases, SHADOW_PRICE, base_tariff, D
         
         
         df_combined['price'] = df_combined["base_price"] + df_combined["tariff"]
-        df_combined['dispatch'] = df_combined["Pd"] + df_combined["Pc"]
+        df_combined['dispatch'] = df_combined["Pd"] - df_combined["Pc"]
         
         STORAGE_RESULT[scenario] = df_combined
         df_combined.to_csv(os.path.join(output_dir_csv, f"storage_result_CONFIGURATION_{scenario}.csv"), index=False)

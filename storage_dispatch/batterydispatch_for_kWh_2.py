@@ -55,13 +55,13 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     
     #MODEL INITIALIZATION
     #bat = Container(working_directory=os.path.join(os.getcwd(), "debugg_bat"))
-    ''' 
+    
     bat = Container(
         system_directory=os.getenv("SYSTEM_DIRECTORY", None),
         delayed_execution=int(os.getenv("DELAYED_EXECUTION", False)),
     )
-    '''
     
+    ''' 
     current_working_directory = os.getcwd()
     debug_directory = os.path.join(current_working_directory, 'debug')
     
@@ -69,12 +69,13 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         os.makedirs(debug_directory)
 
     bat=Container(working_directory=debug_directory)
+    '''
 
 
     # WITHOUT Tariff functions 
     t=Set(bat, name = "t", records = price_table.t.tolist(), description = " hours")
     #P=Parameter(bat,"P", domain=[t], records=price_table['Day-ahead Price [EUR/MWh]'], description="Day ahead Price")
-    P=Parameter(bat,"P", domain=[t], records=price_table['DE_LU'], description="Day ahead Price")
+    P=Parameter(bat,"P", domain=[t], records=price_table[['t', 'DE_LU']], description="Day ahead Price")
     
     # Variables
     SOC = Variable(bat, name="SOC", type="free", domain=t)
@@ -135,14 +136,17 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         defnetload[t] = net_load[t] == gridload[t] + Pc[t] - Pd[t]
     elif configuration == "ex-ante":
         defnetload[t] = net_load[t] == gridload[t]
-
+        
     
     # WITH tariff functions
     tariff_level = Variable(bat, 'tarrif_level', domain=[t], type='free')
     
     #Initilaize cap_limit and cap_threshold for info dictionnary 
-    cap_limit = 1.2*nodal_load.max(axis=0) #manage to exact cap_limit
+    cap_limit = 1*nodal_load.max(axis=0) #manage to exact cap_limit
     cap_threshold = (1-delta)*nodal_load.max(axis=0) 
+    
+     
+        
     
     if tariff_status == 'on':
         
@@ -197,10 +201,6 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
             define_unique_null[t] = net_load_positive[t]*net_load_negative[t] == 0
             '''
             
-            
-            
-            
-            
         elif shape== "proportional":
             deftariff = Equation(bat, name="deftariff", domain=[t])
             #calculate slope 
@@ -212,7 +212,13 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         
         elif shape == "piecewise":
     
-        
+            ''' 
+            if configuration == "ex-post":
+                #total_load = Variable(bat, 'total_load', domain=[t], type='free')
+                deftotalload = Equation(bat, name="deftotalload", domain=[t])
+                deftotalload[t] = net_load[t] <= cap_limit
+            '''
+                
             x1 = -cap_limit
             x2 = -cap_threshold
             x3 = cap_threshold
@@ -251,6 +257,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
             oneSeg[t] = Sum(s, sselect[t,s]) == 1
             defy[t] = tariff_level[t] == Sum(s, sy[s]*sselect[t,s] + sstep[t,s]*sslope[s])
             defx[t] = net_load[t] == Sum(s, sx[s]*sselect[t,s] + sstep[t,s])
+            net_load.up[t] = cap_limit
             defslope[t,s] = sstep[t,s] <= sstep.up[t,s]*sselect[t,s] 
             
             

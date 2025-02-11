@@ -1974,6 +1974,7 @@ def plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
                 average_tariff_revenues.append(annual_tariff_revenue.mean())
                 average_total_revenues.append(total_revenue.mean())
                 std_total_revenues.append(total_revenue.std())
+                pass 
 
         # Convert lists to numpy arrays
         average_market_revenues = np.array(average_market_revenues)
@@ -2029,6 +2030,225 @@ def plot_revenue_comparison(STORAGE_RESULT, params, output_dir_plot):
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir_plot, "revenue_comparison.jpg"), dpi=600)
+    
+
+
+def plot_revenue_by_year(STORAGE_RESULT, params, output_dir_plot): #TO BE INCLUDED TO ANSWER REVIEWER COMMENT 12. 
+    alpha = 0.85
+    # Get all unique shapes
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#ff7f0e', '#1f77b4', 'grey']  # Colors for Tariff Revenue, Market Revenue, and Std Dev of Total Revenue
+    bar_width = 0.2  # Adjusted for smaller bars
+
+    fig, axes = plt.subplots(2, 2, figsize=(12, 12))  # 2x2 grid for subplots
+
+    shape_idx = 0
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
+
+    for i, shape in enumerate(shapes):
+        ax = axes[i // 2, i % 2]  # Select the correct subplot axis
+
+        annual_market_revenue_all = []
+        annual_tariff_revenue_all = []
+        total_revenue_all = []
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate revenues
+                df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
+                df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
+
+                # Calculate annual revenues
+                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum()
+                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum()
+                total_revenue = annual_market_revenue + annual_tariff_revenue
+
+                # Store values
+                annual_market_revenue_all.append(annual_market_revenue)
+                annual_tariff_revenue_all.append(annual_tariff_revenue)
+                total_revenue_all.append(total_revenue)
+
+        # Combine all years data into one series for each shape
+        all_years = np.unique(np.concatenate([revenue.index for revenue in total_revenue_all]))  # All years across all scenarios
+        avg_revenue = np.mean([revenue.mean() for revenue in total_revenue_all], axis=0)  # Mean across scenarios
+
+        # Plot total revenue per year
+        total_revenue_mean_per_year = [np.mean([revenue.get(year, 0) for revenue in total_revenue_all]) for year in all_years]
+        ax.bar(all_years, total_revenue_mean_per_year, width=0.8, color=colors[2], edgecolor='black', alpha=alpha)
+
+        # Annotate the bars with average revenue
+        for year, value in zip(all_years, total_revenue_mean_per_year):
+            ax.annotate(f'{value:,.2f}', xy=(year, value), xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', fontsize=8)
+
+        # Plot the average total revenue line
+        ax.axhline(y=avg_revenue, color='r', linestyle='--', label=f'Mean Total Revenue: {avg_revenue:,.2f}')
+
+        # Set labels and title
+        ax.set_title(f'Total Revenue Evolution by Year for Shape {shape}', fontsize=12)
+        ax.set_xlabel('Year', fontsize=10)
+        ax.set_ylabel('Revenue (EUR)', fontsize=10)
+        ax.legend(loc='upper left', fontsize=8)
+
+        # Store shape labels
+        shapes_labels.append(f'{shape}')
+        num_scenarios_per_shape.append(len(total_revenue_all))
+
+    # Adjust subplot layout
+    plt.tight_layout()
+
+    # Save plot
+    plt.savefig(os.path.join(output_dir_plot, "revenue_evolution_by_year.jpg"), dpi=600)
+
+
+    
+
+def plot_revenue_comparison_NEW(STORAGE_RESULT, params, output_dir_plot):
+    alpha = 0.85
+    # Get all unique shapes
+    shapes = sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys()))
+    colors = ['#ff7f0e', '#1f77b4', 'grey']  # Colors for Tariff Revenue, Market Revenue, and Std Dev of Total Revenue
+    bar_width = 0.2  # Adjusted for smaller bars
+
+    fig, ax = plt.subplots(figsize=(9, 6))  # Increased figure size for better readability
+
+    shape_idx = 0
+    shapes_labels = []  # To store shape labels
+    num_scenarios_per_shape = []  # To store number of scenarios per shape
+
+    for shape in shapes:
+        average_market_revenues = []
+        average_tariff_revenues = []
+        average_total_revenues = []
+        std_total_revenues = []
+
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate revenues
+                df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
+                df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
+
+                # Calculate annual revenues
+                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum()
+                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum()
+                total_revenue = annual_market_revenue + annual_tariff_revenue
+
+                # Store values
+                average_market_revenues.append(annual_market_revenue.mean())
+                average_tariff_revenues.append(annual_tariff_revenue.mean())
+                average_total_revenues.append(total_revenue.mean())
+                std_total_revenues.append(total_revenue.std())
+
+        # Convert lists to numpy arrays
+        average_market_revenues = np.array(average_market_revenues)
+        average_tariff_revenues = np.array(average_tariff_revenues)
+        average_total_revenues = np.array(average_total_revenues)
+        std_total_revenues = np.array(std_total_revenues)
+
+        # Indices for the bars
+        index = np.arange(len(average_market_revenues))
+        gap = 0.1  # Gap between groups
+        offset = shape_idx * (bar_width * 3 + gap)  # Added gap between groups
+
+        # Plot stacked bars for tariff and market revenues with hatching
+        bars1 = ax.bar(index + offset, average_tariff_revenues, bar_width, color=colors[0], edgecolor='black', 
+                       label='Tariff-based revenue' if shape_idx == 0 else "", alpha=alpha, hatch='/')
+        bars2 = ax.bar(index + offset, average_market_revenues, bar_width, bottom=average_tariff_revenues, color=colors[1], 
+                       edgecolor='black', label='Energy market revenue' if shape_idx == 0 else "", alpha=alpha, hatch='\\')
+
+        # Plot bars for standard deviation of total revenue with hatching
+        bars3 = ax.bar(index + offset + bar_width, std_total_revenues, bar_width, color=colors[2], edgecolor='black', 
+                       label='Std Dev of Total Revenue' if shape_idx == 0 else "", alpha=alpha, hatch='.')
+
+        # Add annotations for revenues
+        for bar in bars1:
+            height = bar.get_height()
+            ax.annotate(f'{height:,.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+        for bar1, bar2 in zip(bars1, bars2):
+            height1 = bar1.get_height()
+            height2 = bar2.get_height()
+            total_height = height1 + height2
+            ax.annotate(f'{height2:,.2f}', xy=(bar2.get_x() + bar2.get_width() / 2, total_height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+        for bar in bars3:
+            height = bar.get_height()
+            ax.annotate(f'{height:,.2f}', xy=(bar.get_x() + bar.get_width() / 2, height), xytext=(0, 3), 
+                        textcoords="offset points", ha='center', va='bottom', fontsize=8)
+
+        # Add shape labels
+        shapes_labels.extend([f'{shape}'])
+        num_scenarios_per_shape.append(len(average_market_revenues))
+        shape_idx += 1
+
+    # Adjust tick positions and labels
+    total_bars = sum(num_scenarios_per_shape)
+    ticks_positions = np.arange(total_bars) * (bar_width * 3 + gap) + bar_width / 2
+    ax.set_xticks(ticks_positions)
+    ax.set_xticklabels(shapes_labels, rotation=0, ha='right', fontsize=10)  # Increase tick label size
+
+    ax.set_xlabel('Shapes', fontsize=12)  # Increase x-axis label size
+    ax.set_ylabel('Revenue (EUR/y)', fontsize=12)  # Increase y-axis label size
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.1), ncol=3, fontsize=10)  # Increase legend size
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "revenue_comparison.jpg"), dpi=600)
+
+
+def plot_revenue_variability(STORAGE_RESULT, params, output_dir_plot):
+    # Setup
+    alpha = 0.85
+    colors = ['#ff7f0e', '#1f77b4']  # Colors for Tariff Revenue and Market Revenue
+    bar_width = 0.3
+
+    # Create a figure for the plot
+    fig, ax = plt.subplots(figsize=(9, 6))
+
+    # Iterate through all the shapes (scenarios) and compute the yearly variance in revenues
+    for shape in sorted(set(params[scenario]['global']['tariff']['shape'] for scenario in STORAGE_RESULT.keys())):
+        years = []
+        variance_market_revenues = []
+        variance_tariff_revenues = []
+        
+        # Iterate over each scenario to calculate variances
+        for scenario, df_delta in STORAGE_RESULT.items():
+            if params[scenario]['global']['tariff']['shape'] == shape:
+                # Calculate revenues
+                df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
+                df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
+
+                # Group by year and calculate the variance of revenues per year
+                annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum()
+                annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum()
+                
+                # Store the variance of revenues for market and tariff-based revenues
+                variance_market_revenues.append(annual_market_revenue.var())
+                variance_tariff_revenues.append(annual_tariff_revenue.var())
+                years = list(annual_market_revenue.index)  # Assuming same years for all scenarios
+
+        # Convert to numpy arrays for plotting
+        variance_market_revenues = np.array(variance_market_revenues)
+        variance_tariff_revenues = np.array(variance_tariff_revenues)
+
+        # Plot the variance for both types of revenues (market and tariff-based)
+        ax.plot(years, variance_market_revenues, label=f'Variance of Market Revenue ({shape})', color=colors[1], marker='o')
+        ax.plot(years, variance_tariff_revenues, label=f'Variance of Tariff Revenue ({shape})', color=colors[0], marker='x')
+
+    # Set up labels and title
+    ax.set_xlabel('Year', fontsize=12)
+    ax.set_ylabel('Revenue Variance (EUR^2)', fontsize=12)
+    ax.set_title('Yearly Variability in Market and Tariff Revenue', fontsize=14)
+    ax.legend(loc='upper left', fontsize=10)
+
+    # Adjust layout for better readability
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig(os.path.join(output_dir_plot, "revenue_variability.jpg"), dpi=600)
+
+    # Show the plot
+    plt.show()
+
 
 
 def plot_revenue_comparison_ok3(STORAGE_RESULT, params, output_dir_plot):
@@ -2997,7 +3217,7 @@ def plotStorageDispatchConfiguration(scenario_cases, STORAGE_RESULT, params, out
 
                     # Tracer les données
                     #df_filtered['dispatch']*= 10e3
-                    ax.plot(df_filtered['hour'], df_filtered['dispatch_load'], label=f'Total demand', color='b')
+                    ax.plot(df_filtered['hour'], df_filtered['dispatch_load'], label=f'Net load', color='b')
                     ax.plot(df_filtered['hour'], df_filtered['gridload'], label=f'Grid load ', color='g')
                     
                     if shape == "piecewise":

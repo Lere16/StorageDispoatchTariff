@@ -1,0 +1,38 @@
+clc; clear; close all;
+
+DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/germany');
+
+selected_files = { 'storage_result_scenario_1.csv', ...
+                   'storage_result_scenario_2.csv', ...
+                   'storage_result_scenario_3.csv', ...
+                   'storage_result_scenario_4.csv'};
+
+scenarios = {'Ex-Ante', 'Flat', 'Proportional', 'Piecewise'};
+
+% Chargement des données
+data = cell(length(selected_files), 1);
+for i = 1:length(selected_files)
+    filename = fullfile(DATA_PATH, selected_files{i});
+    data{i} = readtable(filename);
+end
+
+% Nombre d'années disponibles dans les données
+years = unique(data{1}.year);
+
+% Initialisation de la figure pour le heatmap
+figure;
+
+% Créer la matrice pour le heatmap
+heatmap_data = zeros(length(scenarios), length(years)); % Ligne pour chaque scénario, colonne pour chaque année
+
+for i = 1:length(scenarios)
+    for j = 1:length(years)
+        subset = data{i}(data{i}.year == years(j), :);
+        heatmap_data(i, j) = mean(-subset.Pc-subset.Pd); % Moyenne du dispatch par année et scénario
+    end
+end
+
+% Créer un heatmap
+heatmap(years, scenarios, heatmap_data, 'ColorMap', jet, 'Title', 'Impact des Tarifs sur le Dispatch du Stockage');
+xlabel('Année');
+ylabel('Scénarios');
