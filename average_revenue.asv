@@ -1,0 +1,54 @@
+clc; clear; close all;
+
+% Définition du chemin des données
+DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/germany');
+
+% Liste des fichiers CSV correspondant à chaque scénario
+selected_files = { 'storage_result_scenario_1.csv', ...
+                   'storage_result_scenario_2.csv', ...
+                   'storage_result_scenario_3.csv', ...
+                   'storage_result_scenario_4.csv'};
+
+% Noms des scénarios
+scenarios = {'Ex-Ante', 'Flat', 'Proportional', 'Piecewise'};
+colors = lines(length(scenarios)); % Couleurs différentes pour chaque scénario
+
+% Création de la figure
+figure;
+
+% Boucle sur chaque scénario pour tracer les revenus moyens
+for i = 1:length(scenarios)
+    % Chargement des données
+    filename = fullfile(DATA_PATH, selected_files{i});
+    data = readtable(filename);
+    
+    % Extraction des années uniques
+    years = unique(data.year);
+    
+    % Calcul des revenus moyens par année
+    revenue_market = zeros(length(years), 1);
+    revenue_tariff = zeros(length(years), 1);
+    
+    for j = 1:length(years)
+        idx = data.year == years(j);
+        revenue_market(j) = mean(data.Pd(idx) .* data.base_price(idx));
+        revenue_tariff(j) = mean(data.Pd(idx) .*data.tariff(idx));
+    end
+    
+    % Tracé du bar chart
+    subplot(2, 2, i);
+    hold on;
+    bar(years, [revenue_market, revenue_tariff], 'grouped');
+    
+    % Ajout des étiquettes et titres
+    title([scenarios{i}]);
+    xlabel('Year');
+    ylabel('Average re');
+    legend('Marché', 'Tarif', 'Location', 'best');
+    grid on;
+    hold off;
+end
+
+% Ajustement de l'affichage
+sgtitle('Revenus Moyens du Stockage par Année et Scénario');
+set(gcf, 'Position', [100, 100, 1000, 600]);

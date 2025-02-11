@@ -7,7 +7,7 @@ selected_files = { 'storage_result_scenario_1.csv', ...
                    'storage_result_scenario_3.csv', ...
                    'storage_result_scenario_4.csv'};
 
-scenarios = {'Ex-Ante', 'Flat', 'Proportional', 'Piecewise'};
+scenarios = {'Without Tariff', 'Flat', 'Proportional', 'Piecewise'};
 
 % Chargement des données
 data = cell(length(selected_files), 1);
@@ -19,23 +19,47 @@ end
 % Nombre d'années disponibles dans les données
 years = unique(data{1}.year);
 
-% Initialisation de la figure
+% Initialisation de la figure pour le subplot
 figure;
 
-% Tracer les lignes pour chaque scénario
+% Couleurs pour chaque scénario
+colors = lines(length(scenarios));
+
+% ---- Subplot 1 : Average Discharge (Pd) ----
+subplot(2,1,1);
 hold on;
 for i = 1:length(scenarios)
-    dispatch_data = zeros(length(years), 1);
+    dispatch_data = [];
     for j = 1:length(years)
         subset = data{i}(data{i}.year == years(j), :);
-        dispatch_data(j) = mean(-subset.Pc - subset.Pd); % Moyenne du dispatch par année et scénario
+        dispatch_data = [dispatch_data, mean(subset.Pd)]; % Moyenne du dispatch (décharge)
     end
-    plot(years, dispatch_data, 'LineWidth', 2, 'DisplayName', scenarios{i});
+    plot(years, dispatch_data, '-o', 'DisplayName', scenarios{i}, 'LineWidth', 2, 'Color', colors(i, :));
 end
-
-% Ajouter légende et labels
-xlabel('Année');
-ylabel('Dispatch (kWh)');
-title('Impact des Tarifs sur le Dispatch du Stockage');
+title('Average Discharge (Pd)');
+xlabel('Year');
+ylabel('Average Discharge (MW/h)');
 legend('Location', 'best');
 grid on;
+hold off;
+
+% ---- Subplot 2 : Average Charge (Pc) ----
+subplot(2,1,2);
+hold on;
+for i = 1:length(scenarios)
+    charge_data = [];
+    for j = 1:length(years)
+        subset = data{i}(data{i}.year == years(j), :);
+        charge_data = [charge_data, mean(subset.Pc)]; % Moyenne de la charge (charge)
+    end
+    plot(years, charge_data, '-o', 'DisplayName', scenarios{i}, 'LineWidth', 2, 'Color', colors(i, :));
+end
+title('Average Charge (Pc)');
+xlabel('Year');
+ylabel('Average Charge (MW/h)');
+legend('Location', 'best');
+grid on;
+hold off;
+
+% Ajustement de l'affichage
+set(gcf, 'Position', [100, 100, 800, 600]); % Ajuste la taille de la figure

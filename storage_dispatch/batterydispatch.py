@@ -60,6 +60,8 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     t=Set(bat, name = "t", records = price_table.t.tolist(), description = " hours")
     P=Parameter(bat,"P", domain=[t], records=price_table[['t', 'DE_LU']], description="Day ahead Price")
     gridload = Parameter(bat, 'gridload', domain=[t], records= df_load[["t","Residual load [MWh]"]])
+    #gridload.records.to_csv("gridload.csv")
+    #P.records.to_csv("P.csv")
     
     #SCALARS
     SOC0 = Parameter(bat, name="SOC0", records=size/2)
@@ -72,9 +74,9 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
     SOC = Variable(bat, name="SOC", type="free", domain=t)
     Pd = Variable(bat, name="Pd", type="Positive", domain=t)
     Pc = Variable(bat, name="Pc", type="Positive", domain=t)
-    net_load = Variable(bat, 'net_load', domain=[t], type='Positive')
+    net_load = Variable(bat, 'net_load', domain=[t], type='free')
     chargestate = Variable(bat, 'chargestate', domain=[t], type='binary')
-    tariff_level = Variable(bat, 'tarrif_level', domain=[t], type='Positive')
+    tariff_level = Variable(bat, 'tarrif_level', domain=[t], type='free')
     
     obj = Variable(
         bat, name="obj", type="free", description="Objective function"
@@ -211,7 +213,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         )
     
      
-    opt.solve(solver="CPLEX", solver_options={'optimalitytarget': 3, 'subalg': 4, 'mipdisplay': 5, 'mipgap':0.03,'timelimit': 1800, 'mipemphasis': 3, 'threads': 32}, ) # output=sys.stdout
+    opt.solve(solver="CPLEX", solver_options={'optimalitytarget': 3, 'subalg': 4, 'mipdisplay': 5, 'mipgap':0.03,'timelimit': 1800, 'mipemphasis': 3, 'threads': 8}, ) # output=sys.stdout
     #reporting data and parameters 
     rep = Parameter(bat, name="rep", domain=[t, "*"])
     rep[t, "Pc"] = Pc.l[t]

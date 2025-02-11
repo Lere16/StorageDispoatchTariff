@@ -1,64 +1,64 @@
 clc; clear; close all;
 
-% Définition du chemin des données
+% Define data path
 DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/germany');
 
-% Liste des fichiers CSV correspondant à chaque scénario
+% List of CSV files corresponding to each scenario
 selected_files = { 'storage_result_scenario_1.csv', ...
                    'storage_result_scenario_2.csv', ...
                    'storage_result_scenario_3.csv', ...
                    'storage_result_scenario_4.csv'};
 
-% Noms des scénarios
+% Scenario names
 scenarios = {'Ex-Ante', 'Flat', 'Proportional', 'Piecewise'};
-colors = lines(length(scenarios)); % Couleurs différentes pour chaque scénario
+colors = lines(length(scenarios)); % Different colors for each scenario
 
-% Chargement des données
+% Load data
 data = cell(length(selected_files), 1);
 for i = 1:length(selected_files)
     filename = fullfile(DATA_PATH, selected_files{i});
     data{i} = readtable(filename);
 end
 
-% Création d'une figure
+% Create figure
 figure;
 
-% Boucle sur chaque scénario pour tracer la relation revenue vs net_load
+% Loop through each scenario to plot revenue vs net_load relationship
 for i = 1:length(scenarios)
-    subplot(2, 2, i); % Création d'un subplot (2x2)
+    subplot(2, 2, i); % Create a 2x2 subplot
     hold on;
     
-    % Extraction des colonnes Pd, price et net_load
-    Pd = data{i}.Pd;  % Puissance demandée
-    price = data{i}.price; % Prix
-    net_load = data{i}.net_load; % Charge nette
-    revenue = Pd .* price; % Calcul du revenu
+    % Extract columns Pd, price, and net_load
+    Pd = data{i}.Pd;  % Power demand
+    price = data{i}.price; % Price
+    net_load = data{i}.net_load; % Net load
+    revenue = Pd .* price; % Compute revenue
     
-    % Tracé du scatter plot revenue vs net_load
+    % Plot scatter plot revenue vs net_load
     scatter(net_load, revenue, 8, colors(i, :), 'filled', 'MarkerFaceAlpha', 0.5);
     
-    % Ajustement de l'échelle pour une meilleure visualisation
+    % Adjust scale for better visualization
     xlim([min(net_load) max(net_load)]);
     ylim([min(revenue) max(revenue)]);
     
-    % Ajout d'une courbe de tendance polynomiale (ordre 2)
+    % Add a polynomial trend curve (order 2)
     p = polyfit(net_load, revenue, 2);
     x_fit = linspace(min(net_load), max(net_load), 100);
     y_fit = polyval(p, x_fit);
     plot(x_fit, y_fit, 'k-', 'LineWidth', 2);
     
-    % Ajout d'étiquettes et d'un titre
-    title(['Revenu vs Net Load - ' scenarios{i}]);
-    xlabel('Charge Nette (net\_load)');
-    ylabel('Revenu (Pd * Price)');
+    % Add labels and title
+    title([scenarios{i}]);
+    xlabel('Net Load (MW)');
+    ylabel('Revenue (€)');
     grid on;
-    legend('Données', 'Tendance (polyfit)', 'Location', 'best');
+    legend('Data', 'Trend (polyfit)', 'Location', 'best');
     
     hold off;
 end
 
-% Ajouter un titre général à la figure
-sgtitle('Relation entre Revenu (Pd * Price) et Charge Nette (Net Load)');
+% Add a general title to the figure
+%sgtitle('Relationship Between Revenue (Pd * Price) and Net Load');
 
-% Ajustement de l'affichage
-set(gcf, 'Position', [100, 100, 1000, 600]); % Ajuster la taille de la figure
+% Adjust display settings
+set(gcf, 'Position', [100, 100, 1000, 600]); % Adjust figure size

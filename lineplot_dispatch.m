@@ -7,7 +7,7 @@ selected_files = { 'storage_result_scenario_1.csv', ...
                    'storage_result_scenario_3.csv', ...
                    'storage_result_scenario_4.csv'};
 
-scenarios = {'Ex-Ante', 'Flat', 'Proportional', 'Piecewise'};
+scenarios = {'Without Tariff', 'Flat', 'Proportional', 'Piecewise'};
 
 % Chargement des données
 data = cell(length(selected_files), 1);
@@ -39,8 +39,7 @@ for i = 1:length(scenarios)
 end
 
 % Ajouter des titres et des labels
-xlabel('Année');
-ylabel('Dispatch moyen (kWh)');
-title('Impact des Tarifs sur le Dispatch du Stockage');
+xlabel('Year');
+ylabel('Average dispatch (MW/h)');
 legend('Location', 'best');
 grid on;
