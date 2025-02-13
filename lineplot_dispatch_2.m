@@ -1,6 +1,6 @@
 clc; clear; close all;
 
-DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/germany');
+DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/100/germany');
 
 selected_files = { 'storage_result_scenario_1.csv', ...
                    'storage_result_scenario_2.csv', ...
@@ -36,7 +36,7 @@ for i = 1:length(scenarios)
     end
     plot(years, dispatch_data, '-o', 'DisplayName', scenarios{i}, 'LineWidth', 2, 'Color', colors(i, :));
 end
-title('Average Discharge (Pd)');
+title('a');
 xlabel('Year');
 ylabel('Average Discharge (MW/h)');
 legend('Location', 'best');
@@ -54,7 +54,7 @@ for i = 1:length(scenarios)
     end
     plot(years, charge_data, '-o', 'DisplayName', scenarios{i}, 'LineWidth', 2, 'Color', colors(i, :));
 end
-title('Average Charge (Pc)');
+title('b');
 xlabel('Year');
 ylabel('Average Charge (MW/h)');
 legend('Location', 'best');

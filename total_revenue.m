@@ -1,7 +1,7 @@
 clc; clear; close all;
 
 % Définition du chemin des données
-DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/germany');
+DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/100/germany');
 
 % Liste des fichiers CSV correspondant à chaque scénario
 selected_files = { 'storage_result_scenario_1.csv', ...

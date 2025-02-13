@@ -1,7 +1,7 @@
 clc; clear; close all;
-
+%OK
 % Define data path
-DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/germany');
+DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/100/germany');
 
 % List of CSV files corresponding to each scenario
 selected_files = { 'storage_result_scenario_1.csv', ...
@@ -10,7 +10,7 @@ selected_files = { 'storage_result_scenario_1.csv', ...
                    'storage_result_scenario_4.csv'};
 
 % Scenario names
-scenarios = {'Ex-Ante', 'Flat', 'Proportional', 'Piecewise'};
+scenarios = {'Without tariff', 'Flat', 'Proportional', 'Piecewise'};
 colors = lines(length(scenarios)); % Different colors for each scenario
 
 % Load data
@@ -51,7 +51,7 @@ for i = 1:length(scenarios)
     title([scenarios{i}]);
     xlabel('Net Load (MW)');
     ylabel('Revenue (€)');
-    grid on;
+    %grid on;
     legend('Data', 'Trend (polyfit)', 'Location', 'best');
     
     hold off;

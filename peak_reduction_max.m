@@ -1,5 +1,5 @@
 clc; clear; close all;
-
+%OK
 % Définition du chemin des données
 DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/Amprion');
 
