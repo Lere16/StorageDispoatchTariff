@@ -10,7 +10,7 @@ from gamspy import (
     Sum,
     Ord,
 )
-from gamspy.math import exp, abs, sign
+from gamspy.math import exp, abs, sign, sqrt
 import pandas as pd
 import numpy as np
 import os
@@ -99,8 +99,8 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         SOC[t]
         == SOC0.where[Ord(t) == 1]
         + SOC[t.lag(1)].where[Ord(t) > 1]
-        + Pc[t] * eta_c
-        - Pd[t] / eta_d
+        + Pc[t] * sqrt(eta_c)
+        - Pd[t] / sqrt(eta_d)
     )
     
     # Avoid charging and dishcraging at the same time
@@ -213,7 +213,7 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         )
     
      
-    opt.solve(solver="CPLEX", solver_options={'optimalitytarget': 3, 'subalg': 4, 'mipdisplay': 5, 'mipgap':0.03,'timelimit': 1800, 'mipemphasis': 3, 'threads': 32}, ) # output=sys.stdout
+    opt.solve(solver="CPLEX", solver_options={'optimalitytarget': 3, 'subalg': 4, 'mipdisplay': 5, 'mipgap':0.03,'timelimit': 1800, 'mipemphasis': 3, 'threads': 8}, ) # output=sys.stdout
     #reporting data and parameters 
     rep = Parameter(bat, name="rep", domain=[t, "*"])
     rep[t, "Pc"] = Pc.l[t]

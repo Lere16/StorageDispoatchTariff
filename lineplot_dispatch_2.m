@@ -1,6 +1,6 @@
 clc; clear; close all;
 
-DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/100/germany');
+DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV');
 
 selected_files = { 'storage_result_scenario_1.csv', ...
                    'storage_result_scenario_2.csv', ...

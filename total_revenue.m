@@ -76,7 +76,7 @@ xticks(mean(xPos, 1));  % Positionne les étiquettes au centre des groupes
 xticklabels(scenarios);  % Associe les étiquettes aux scénarios
 
 % Ajout des labels et du titre
-ylabel('Average Annual Revenue (€)');
+ylabel('Average Revenue (€/y)');
 %title('Average Annual Revenue per Scenario');
 legend('Market-based', 'Tariff-based', 'Location', 'best');
 grid on;
