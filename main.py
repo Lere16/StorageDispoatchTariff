@@ -48,7 +48,7 @@ DF_LOAD_TransnetBW, DF_PRICE = readLoadPrice(load_file_TransnetBW, price_file)
 #Data analysis 
 #plotdataAnalysis(DF_LOAD, DF_PRICE)
 
-
+''' 
 #Step1: compare storage dispatch for each tarifs design 
 print("STEP 1 : STORAGE DISPATCH INCLUDING TARIFF SIGNALS")
 #Select scenarois for base cases: 1,2,3,4
@@ -64,7 +64,7 @@ plotStorageDispatchCases(scenario_cases, STORAGE_RESULT1, selected_years, params
 
 print("STEP 2 : SENSITIVITY ANALYSIS FOR STORAGE DISPATCH")  
 #Sensitity analysis for delta
-scenario_cases = SCENARIOS[4:9]
+scenario_cases = SCENARIOS[4:12]
 STORAGE_RESULT2 = runStorageDispatchSensitivitydelta(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD)
 categories = ['Revenue Market', 'Revenue Tariff', 'Total Revenue']
 plotStorageDispatchSensitivitydelta(params, STORAGE_RESULT2,categories)
@@ -72,14 +72,16 @@ plotStorageDispatchSensitivitydelta(params, STORAGE_RESULT2,categories)
 
 # sensitivity analysis for share 
 print("-*- Sensitivity analysis on share")
-scenario_cases = SCENARIOS[9:21]
+scenario_cases = SCENARIOS[12:24]
 STORAGE_RESULT3 = runStorageDispatchSensitivityShare(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD)
 plotStorageDispatchSensitivityShare(params, STORAGE_RESULT3)
+''' 
 
 print("STEP 4: EX-ANTE TARIFF VS EX-POST TARIFF")
-scenario_cases = SCENARIOS[21:25]
+scenario_cases = SCENARIOS[24:28]
 STORAGE_RESULT4 = runStorageConfiguration(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD) 
 plotStorageConfiguration(scenario_cases, STORAGE_RESULT4, params)
+
 
 
 

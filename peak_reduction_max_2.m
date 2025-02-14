@@ -1,7 +1,7 @@
 clc; clear; close all;
 
 % Définition du chemin des données
-DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/Amprion');
+DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'results', 'CSV/100/50Hertz');
 
 % Liste des fichiers CSV correspondant à chaque scénario
 selected_files = { 'storage_result_CONFIGURATION_scenario_22.csv', ...
@@ -61,9 +61,9 @@ figure;
 bar_handle = bar(years_all, peak_reduction', 'grouped');
 xlabel('Year');
 ylabel('Peak Reduction (MW)');
-title('Comparison of Peak Load Reduction by Scenario');
+title('50Hertz');
 legend(scenarios, 'Location', 'best');
-grid on;
+%grid on;
 set(gca, 'FontSize', 12);
 
 % Display the values on the bars

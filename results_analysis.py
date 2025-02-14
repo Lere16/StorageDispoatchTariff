@@ -2620,7 +2620,7 @@ def plot_stacked_revenues_2(STORAGE_RESULT, params, output_dir_plot):
 
 
 
-def plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir_plot):
+def plot_stacked_revenues_3_old(STORAGE_RESULT, params, output_dir_plot):
     deltas = []
     average_market_revenues = []
     average_tariff_revenues = []
@@ -2698,6 +2698,72 @@ def plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir_plot):
 
     plt.tight_layout()
     plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_delta_stacked_3.png"), dpi=350)
+    
+def plot_stacked_revenues_3(STORAGE_RESULT, params, output_dir_plot):
+    deltas = []
+    average_market_revenues = []
+    average_tariff_revenues = []
+
+    for scenario, df_delta in STORAGE_RESULT.items():
+        # Calculer les revenus
+        df_delta['revenue_net'] = df_delta['dispatch'] * df_delta['price']
+        df_delta['revenue_tariff'] = df_delta['dispatch'] * df_delta['tariff']
+        df_delta['revenue_market'] = df_delta['dispatch'] * df_delta['base_price']
+        
+        # Calculer les revenus annuels moyens
+        annual_market_revenue = df_delta.groupby('year')['revenue_market'].sum().tolist()
+        annual_tariff_revenue = df_delta.groupby('year')['revenue_tariff'].sum().tolist()
+        
+        # Calculer les revenus moyens
+        average_market_revenue = np.mean(annual_market_revenue)
+        average_tariff_revenue = np.mean(annual_tariff_revenue)
+        
+        # Lire le delta
+        delta = float(params[scenario]['global']['tariff']['delta'])
+        
+        # Stocker les valeurs
+        deltas.append(delta)
+        average_market_revenues.append(average_market_revenue)
+        average_tariff_revenues.append(average_tariff_revenue)
+
+    # Tracer le bar chart empilé
+    fig, ax1 = plt.subplots(figsize=(12, 6))
+
+    bar_width = 0.35
+    index = np.arange(len(deltas))
+    
+    bars1 = ax1.bar(index, average_market_revenues, bar_width, label='Energy market revenue', color='#1f77b4', edgecolor='black')
+    bars2 = ax1.bar(index, average_tariff_revenues, bar_width, bottom=average_market_revenues, label='Tariff-based Revenue', color='#ff7f0e', edgecolor='black')
+
+    ax1.set_xlabel('Δ', fontsize=16)
+    ax1.set_ylabel('Average Revenue (EUR/y)', fontsize=14)
+    ax1.set_xticks(index)
+    ax1.set_xticklabels([f'{delta:.2f}' for delta in deltas], fontsize=14)
+    
+    # Déplacer la légende en bas, en dehors du graphique
+    ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=12)
+
+    # Annoter chaque barre avec le pourcentage de sa valeur par rapport à la somme des valeurs des barres empilées
+    def annotate_bars(bars, revenues, total_revenues):
+        for bar, revenue, total_revenue in zip(bars, revenues, total_revenues):
+            percentage = (revenue / total_revenue) * 100
+            ax1.annotate(f'{percentage:.2f}%', 
+                        xy=(bar.get_x() + bar.get_width() / 2, bar.get_y() + bar.get_height() / 2), 
+                        xytext=(0, 0), 
+                        textcoords='offset points', 
+                        ha='center', 
+                        va='center', 
+                        color='white',
+                        fontsize=10,
+                        rotation=90)
+
+    total_revenues = np.array(average_market_revenues) + np.array(average_tariff_revenues)
+    annotate_bars(bars1, average_market_revenues, total_revenues)
+    annotate_bars(bars2, average_tariff_revenues, total_revenues)
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output_dir_plot, "Sensitivity_on_delta_stacked_3.png"), dpi=350)
+
     
     
     
@@ -3067,7 +3133,7 @@ def plot_stacked_revenues_by_shape_vertical(STORAGE_RESULT, params, output_dir_p
 
         # Ajuster la place en bas pour la légende
         plt.tight_layout()
-        plt.subplots_adjust(bottom=0.3)  # Ajuster pour ne pas superposer la légende et les étiquettes
+        plt.subplots_adjust(bottom=0.2)  # Ajuster pour ne pas superposer la légende et les étiquettes
 
         # Enregistrer chaque figure individuellement avec le nom de la forme
         plt.savefig(os.path.join(output_dir_plot, f"Sensitivity_on_share_and_shape_stacked_{shape}.png"), dpi=500)

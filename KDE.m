@@ -1,6 +1,6 @@
 % Load data
 DATA_PATH = fullfile(fileparts(mfilename('fullpath')), 'data', 'input');
-LOAD_FILE = fullfile(DATA_PATH, 'actual_consumption_TransnetBW.csv');
+LOAD_FILE = fullfile(DATA_PATH, 'actual_consumption_germany.csv');
 
 opts = detectImportOptions(LOAD_FILE);
 opts.VariableNamesLine = 1; % Adjust according to the file
@@ -29,7 +29,7 @@ plot([max_val max_val], [0 max(f)], 'k--', 'LineWidth', 1.5);
 % Add labels and title
 xlabel('Residual Load (MW)', 'FontSize', 12, 'FontWeight', 'bold');
 ylabel('Probability Density', 'FontSize', 12, 'FontWeight', 'bold');
-title('Area TransnetBW', 'FontSize', 14, 'FontWeight', 'bold');
+title('DE/LU Bidding Zone', 'FontSize', 14, 'FontWeight', 'bold');
 grid on;
 legend('Histogram', 'KDE Estimation', 'Min-Max');
 
