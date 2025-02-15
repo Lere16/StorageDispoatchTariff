@@ -166,6 +166,8 @@ def runStorageDispatchSensitivityShare(params, scenario_cases, SHADOW_PRICE, bas
     delta = float(params[scenario_cases[0]]['global']['tariff']['delta'])
     
     STORAGE_RESULT={}
+    output_dir_csv = 'results/CSV'
+    os.makedirs(output_dir_csv, exist_ok=True)
     for scenario in scenario_cases:
         print(scenario)
         df_combined = pd.DataFrame()
@@ -185,6 +187,7 @@ def runStorageDispatchSensitivityShare(params, scenario_cases, SHADOW_PRICE, bas
         df_combined['dispatch'] = df_combined["Pd"] + df_combined["Pc"]
         
         STORAGE_RESULT[scenario] = df_combined
+        df_combined.to_csv(os.path.join(output_dir_csv, f"storage_result_{scenario}.csv"), index=False)
     
     return STORAGE_RESULT
 
