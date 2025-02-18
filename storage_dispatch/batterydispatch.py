@@ -103,6 +103,9 @@ def bat_optimize_(params, price_table, df_load, scenario, size, base_tariff, VOL
         - Pd[t] / eta_d
     )
     
+    #periodESS = Equation(bat, name="periodESS", type="regular", domain=t)
+    #periodESS[t] = SOC['0'] == SOC[t].where[t.last]
+    
     # Avoid charging and dishcraging at the same time
     defcharge = Equation(bat, name="defcharge", type="regular", domain=t)
     defdischarge = Equation(bat, name="defdischarge", type="regular", domain=t)

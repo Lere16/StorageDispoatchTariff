@@ -58,10 +58,11 @@ selected_years = ["2015","2016","2017","2018", "2019","2020", "2021", "2022", "2
 #Plot hourly storage dispatch for base cases
 
 #Plot comparison storage dispatch vs price (base_price+ tariff).
-''' 
+
 STORAGE_RESULT1 = runStorageDispatchCases(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD)
 plotStorageDispatchCases(scenario_cases, STORAGE_RESULT1, selected_years, params)
-
+pass
+''' 
 
 print("STEP 2 : SENSITIVITY ANALYSIS FOR STORAGE DISPATCH")  
 #Sensitity analysis for delta
@@ -70,12 +71,13 @@ STORAGE_RESULT2 = runStorageDispatchSensitivitydelta(params, scenario_cases, DF_
 categories = ['Revenue Market', 'Revenue Tariff', 'Total Revenue']
 plotStorageDispatchSensitivitydelta(params, STORAGE_RESULT2,categories)
 '''
-
+''' 
 # sensitivity analysis for share 
 print("-*- Sensitivity analysis on share")
 scenario_cases = SCENARIOS[12:24]
 STORAGE_RESULT3 = runStorageDispatchSensitivityShare(params, scenario_cases, DF_PRICE, base_tariff, DF_LOAD)
 plotStorageDispatchSensitivityShare(params, STORAGE_RESULT3)
+'''
 
 ''' 
 print("STEP 4: EX-ANTE TARIFF VS EX-POST TARIFF")
